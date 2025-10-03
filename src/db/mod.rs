@@ -324,32 +324,143 @@ pub async fn get_donation_leaderboard(
 pub async fn upsert_user_state(
     pool: &DbPool,
     user_pubkey: &str,
-    has_buddha_nft: bool,
-    has_medal_nft: bool,
-    pending_random_request_id: Option<&str>,
-    pending_amulets: i32,
-    updated_at: DateTime<Utc>,
+    merit: i64,
+    incense_points: i64,
+    total_donation_amount: i64,
+    total_wish_count: i32,
+    total_fortune_draws: i32,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         INSERT INTO user_states (
-            user_pubkey, has_buddha_nft, has_medal_nft,
-            pending_random_request_id, pending_amulets, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
+            user_pubkey, merit, incense_points, total_donation_amount, total_wish_count, total_fortune_draws, updated_at, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
         ON DUPLICATE KEY UPDATE
-            has_buddha_nft = VALUES(has_buddha_nft),
-            has_medal_nft = VALUES(has_medal_nft),
-            pending_random_request_id = VALUES(pending_random_request_id),
-            pending_amulets = VALUES(pending_amulets),
-            updated_at = VALUES(updated_at)
+            merit = VALUES(merit),
+            incense_points = VALUES(incense_points),
+            total_donation_amount = VALUES(total_donation_amount),
+            total_wish_count = VALUES(total_wish_count),
+            total_fortune_draws = VALUES(total_fortune_draws),
+            updated_at = NOW()
         "#,
     )
     .bind(user_pubkey)
-    .bind(has_buddha_nft)
-    .bind(has_medal_nft)
-    .bind(pending_random_request_id)
-    .bind(pending_amulets)
-    .bind(updated_at)
+    .bind(merit)
+    .bind(incense_points)
+    .bind(total_donation_amount)
+    .bind(total_wish_count)
+    .bind(total_fortune_draws)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// Atomically update user state by donation event (incremental update)
+pub async fn upsert_user_state_by_donation(
+    pool: &DbPool,
+    user_pubkey: &str,
+    merit_gained: u64,
+    incense_points_gained: u64,
+    donation_amount: u64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO user_states (
+            user_pubkey, merit, incense_points, total_donation_amount, total_wish_count, total_fortune_draws, updated_at, created_at
+        ) VALUES (?, ?, ?, ?, 0, 0, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+            merit = merit + VALUES(merit),
+            incense_points = incense_points + VALUES(incense_points),
+            total_donation_amount = total_donation_amount + VALUES(total_donation_amount),
+            updated_at = NOW()
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(merit_gained as i64)
+    .bind(incense_points_gained as i64)
+    .bind(donation_amount as i64)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// Atomically update global stats by donation event
+pub async fn upsert_global_stats_by_donation(
+    pool: &DbPool,
+    merit_gained: u64,
+    incense_points_gained: u64,
+    donation_amount: u64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO global_stats (
+            total_donations, total_donation_amount, total_merit_distributed, total_incense_points_distributed, updated_at, created_at
+        ) VALUES (1, ?, ?, ?, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+            total_donations = total_donations + 1,
+            total_donation_amount = total_donation_amount + VALUES(total_donation_amount),
+            total_merit_distributed = total_merit_distributed + VALUES(total_merit_distributed),
+            total_incense_points_distributed = total_incense_points_distributed + VALUES(total_incense_points_distributed),
+            updated_at = NOW()
+        "#,
+    )
+    .bind(donation_amount as i64)
+    .bind(merit_gained as i64)
+    .bind(incense_points_gained as i64)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// Atomically update user state by rewards processed event
+pub async fn upsert_user_state_by_rewards(
+    pool: &DbPool,
+    user_pubkey: &str,
+    merit_reward: u64,
+    incense_points_reward: u64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO user_states (
+            user_pubkey, merit, incense_points, total_donation_amount, total_wish_count, total_fortune_draws, updated_at, created_at
+        ) VALUES (?, ?, ?, 0, 0, 0, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+            merit = merit + VALUES(merit),
+            incense_points = incense_points + VALUES(incense_points),
+            updated_at = NOW()
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(merit_reward as i64)
+    .bind(incense_points_reward as i64)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// Atomically update global stats by rewards processed event
+pub async fn upsert_global_stats_by_rewards(
+    pool: &DbPool,
+    merit_reward: u64,
+    incense_points_reward: u64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO global_stats (
+            total_donations, total_donation_amount, total_merit_distributed, total_incense_points_distributed, updated_at, created_at
+        ) VALUES (0, 0, ?, ?, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+            total_merit_distributed = total_merit_distributed + VALUES(total_merit_distributed),
+            total_incense_points_distributed = total_incense_points_distributed + VALUES(total_incense_points_distributed),
+            updated_at = NOW()
+        "#,
+    )
+    .bind(merit_reward as i64)
+    .bind(incense_points_reward as i64)
     .execute(pool.as_ref())
     .await?;
 

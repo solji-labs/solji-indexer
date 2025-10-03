@@ -18,6 +18,17 @@ pub struct IndexerFetcher {
     event_sender: Sender<ProgramEvent>,
 }
 
+impl Clone for IndexerFetcher {
+    fn clone(&self) -> Self {
+        Self {
+            rpc_client: RpcClient::new(self.rpc_client.url()),
+            program_id: self.program_id,
+            db_pool: self.db_pool.clone(),
+            event_sender: self.event_sender.clone(),
+        }
+    }
+}
+
 impl IndexerFetcher {
     pub fn new(
         rpc_url: &str,
