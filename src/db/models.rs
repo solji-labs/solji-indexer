@@ -108,6 +108,35 @@ pub struct FortuneDrawHistory {
     pub created_at: DateTime<Utc>,
 }
 
+// ShopItem
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct ShopItem {
+    pub id: i32,
+    pub shop_config_id: String,
+    pub item_id: i32,
+    pub name: String,
+    pub description: String,
+    pub price: i64,
+    pub item_type: i32,
+    pub stock: i64,
+    pub is_available: bool,
+    pub merit: Option<i64>,
+    pub incense_points: Option<i64>,
+    pub updated_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+}
+
+// ShopConfig
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct ShopConfig {
+    pub id: i32,
+    pub shop_config_pubkey: String,
+    pub temple_config_pubkey: String,
+    pub owner_pubkey: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
 // API response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlobalStatsResponse {

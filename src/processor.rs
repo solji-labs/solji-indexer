@@ -127,6 +127,29 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                     eprintln!("Worker #{}: Failed to handle IncenseBurned: {:?}", id, err);
                 }
             }
+            ProgramEvent::ShopConfigUpdated {
+                shop_config,
+                temple_config,
+                owner,
+                shop_items,
+                timestamp,
+            } => {
+                if let Err(err) = handle_shop_config_updated(
+                    &pool,
+                    shop_config,
+                    temple_config,
+                    owner,
+                    shop_items,
+                    timestamp,
+                )
+                .await
+                {
+                    eprintln!(
+                        "Worker #{}: Failed to handle ShopConfigUpdated: {:?}",
+                        id, err
+                    );
+                }
+            }
         }
     }
 
@@ -277,6 +300,45 @@ async fn handle_incense_burned(
     // 2. Update user state
     // 3. Update global stats
     // 4. Update leaderboard
+
+    Ok(())
+}
+
+/// Handle ShopConfigUpdated event
+async fn handle_shop_config_updated(
+    pool: &DbPool,
+    shop_config: solana_sdk::pubkey::Pubkey,
+    temple_config: solana_sdk::pubkey::Pubkey,
+    owner: solana_sdk::pubkey::Pubkey,
+    shop_items: Vec<crate::events::ShopItem>,
+    timestamp: i64,
+) -> Result<(), sqlx::Error> {
+    println!(
+        "Processing ShopConfigUpdated: shop_config={}, temple_config={}, owner={}, items_count={}",
+        shop_config,
+        temple_config,
+        owner,
+        shop_items.len()
+    );
+
+    let shop_config_str = shop_config.to_string();
+    let temple_config_str = temple_config.to_string();
+    let owner_str = owner.to_string();
+    let updated_at =
+        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+
+    // 1. Upsert shop config record
+    crate::db::upsert_shop_config(
+        pool,
+        &shop_config_str,
+        &temple_config_str,
+        &owner_str,
+        updated_at,
+    )
+    .await?;
+
+    // 2. Sync shop items (delete existing and insert new ones)
+    crate::db::sync_shop_items(pool, &shop_config_str, &shop_items, updated_at).await?;
 
     Ok(())
 }
