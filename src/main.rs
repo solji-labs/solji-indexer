@@ -1,15 +1,18 @@
 mod api;
 mod db;
+mod event_parser;
+mod events;
 mod indexer;
 mod test_db;
 mod utils;
 
 use crate::api::{create_router, AppState};
 use crate::db::{create_pool, init_database};
+use crate::events::ProgramEvent;
 use crate::indexer::fetcher::IndexerFetcher;
 use crate::utils::config::Config;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{mpsc, RwLock};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,8 +29,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_database(&db_pool).await?;
     println!("Database initialized successfully");
 
+    // Create event channel
+    let (event_sender, _event_receiver) = mpsc::channel::<ProgramEvent>(100);
+
     // Create fetcher
-    let fetcher = IndexerFetcher::new(&config.rpc_url, config.program_id, db_pool.clone());
+    let fetcher = IndexerFetcher::new(
+        &config.rpc_url,
+        config.program_id,
+        db_pool.clone(),
+        event_sender,
+    );
     let fetcher = Arc::new(RwLock::new(fetcher));
 
     // Create app state
@@ -42,22 +53,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "0.0.0.0:3000";
     println!("Starting HTTP server on {}", addr);
 
-    // Start the polling service
-    let fetcher_clone = fetcher.clone();
-    tokio::spawn(async move {
-        let fetcher = fetcher_clone.read().await;
-        println!("Starting Indexer polling...");
-        if let Err(e) = fetcher.start_polling().await {
-            eprintln!("Indexer polling error: {:?}", e);
-        }
-    });
-
     // Start the event listener
     let fetcher_clone = fetcher.clone();
     tokio::spawn(async move {
         let fetcher = fetcher_clone.read().await;
         println!("Starting event listener...");
-        if let Err(e) = fetcher.start_event_listener().await {
+        if let Err(e) = fetcher.start_listening().await {
             eprintln!("Event listener error: {:?}", e);
         }
     });

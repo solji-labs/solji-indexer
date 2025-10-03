@@ -1,147 +1,112 @@
-use anchor_lang::AccountDeserialize;
 use futures_util::{SinkExt, StreamExt};
+use serde_json::Value;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::pubkey::Pubkey;
 use sqlx::{MySql, Pool};
 use std::sync::Arc;
 use std::time::Duration;
-use temple::state::global_stats::GlobalStats;
-use tokio::time;
+use tokio::sync::mpsc::Sender;
+use tokio_tungstenite::tungstenite::Message;
+
+use crate::event_parser::try_parse_event;
+use crate::events::ProgramEvent;
 
 pub struct IndexerFetcher {
     rpc_client: RpcClient,
     program_id: Pubkey,
     db_pool: Arc<Pool<MySql>>,
+    event_sender: Sender<ProgramEvent>,
 }
 
 impl IndexerFetcher {
-    pub fn new(rpc_url: &str, program_id: Pubkey, db_pool: Arc<Pool<MySql>>) -> Self {
+    pub fn new(
+        rpc_url: &str,
+        program_id: Pubkey,
+        db_pool: Arc<Pool<MySql>>,
+        event_sender: Sender<ProgramEvent>,
+    ) -> Self {
         let rpc_client = RpcClient::new(rpc_url.to_string());
         Self {
             rpc_client,
             program_id,
             db_pool,
+            event_sender,
         }
     }
 
-    pub async fn start_polling(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let mut interval = time::interval(Duration::from_secs(5));
-
-        loop {
-            interval.tick().await;
-            self.fetch_global_stats().await?;
-        }
-    }
-
-    async fn fetch_global_stats(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let (global_stats_pda, _) =
-            Pubkey::find_program_address(&[b"global_stats_v1"], &self.program_id);
-
-        match self.rpc_client.get_account(&global_stats_pda) {
-            Ok(account) => match GlobalStats::try_deserialize(&mut &account.data[..]) {
-                Ok(global_stats) => {
-                    println!("Fetched GlobalStats successfully:");
-                    println!("  Total Merit: {}", global_stats.total_merit);
-                    println!(
-                        "  Total Incense Points: {}",
-                        global_stats.total_incense_points
-                    );
-                    println!(
-                        "  Total Donations (SOL): {:.9}",
-                        global_stats.total_donations_sol()
-                    );
-                    println!("  Total Users: {}", global_stats.total_users);
-                    println!("  Total Wishes: {}", global_stats.total_wishes);
-                    println!("  Updated At: {}", global_stats.updated_at);
-                }
-                Err(e) => {
-                    eprintln!("Failed to deserialize GlobalStats: {:?}", e);
-                }
-            },
-            Err(e) => {
-                eprintln!("Failed to fetch GlobalStats account: {:?}", e);
-            }
-        }
-
-        Ok(())
-    }
-
-    pub async fn start_event_listener(
-        &self,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        println!("Starting event listener for program: {}", self.program_id);
-
-        // Convert HTTP URL to WebSocket URL
+    // Core function: Start WebSocket listening and reconnection
+    pub async fn start_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
         let ws_url = self.rpc_url_to_ws_url();
 
-        match tokio_tungstenite::connect_async(&ws_url).await {
-            Ok((ws_stream, _)) => {
-                println!("WebSocket connection established to: {}", ws_url);
-
-                let (mut write, mut read) = ws_stream.split();
-
-                // Send subscription request
-                let subscribe_msg = serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": "logsSubscribe",
-                    "params": [
-                        {
-                            "mentions": [self.program_id.to_string()]
-                        },
-                        {
-                            "commitment": "confirmed"
-                        }
-                    ]
-                });
-
-                let msg = tokio_tungstenite::tungstenite::Message::Text(subscribe_msg.to_string());
-                if let Err(e) = write.send(msg).await {
-                    eprintln!("Failed to send subscription message: {:?}", e);
-                    return Ok(());
+        // Outer loop: Handle connection drops and reconnections
+        loop {
+            println!("Attempting to connect to WebSocket: {}", ws_url);
+            match self.listen_for_logs(&ws_url).await {
+                Ok(_) => {
+                    println!("WebSocket listening finished normally (unexpected). Restarting...");
                 }
+                Err(e) => {
+                    eprintln!("WebSocket connection failed or dropped: {:?}", e);
+                }
+            }
 
-                println!("Subscribed to program logs for: {}", self.program_id);
+            // Exponential backoff retry (e.g., wait 5 seconds before reconnecting)
+            tokio::time::sleep(Duration::from_secs(5)).await;
+        }
+    }
 
-                // Listen for messages
-                while let Some(message) = read.next().await {
-                    match message {
-                        Ok(msg) => {
-                            if let tokio_tungstenite::tungstenite::Message::Text(text) = msg {
-                                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&text)
-                                {
-                                    if let Some(logs) = parsed
-                                        .get("params")
-                                        .and_then(|p| p.get("result"))
-                                        .and_then(|r| r.get("value"))
-                                        .and_then(|v| v.get("logs"))
-                                        .and_then(|l| l.as_array())
-                                    {
-                                        for log in logs {
-                                            if let Some(log_str) = log.as_str() {
-                                                println!("Received program log: {}", log_str);
-                                                // TODO: Parse and handle Anchor events
-                                                // For now, just log the raw event
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("WebSocket error: {:?}", e);
-                            break;
+    // Internal function: Lifecycle of a single connection
+    async fn listen_for_logs(&self, ws_url: &str) -> Result<(), Box<dyn std::error::Error>> {
+        // 1. Connect to WebSocket
+        let (mut ws_stream, _) = tokio_tungstenite::connect_async(ws_url).await?;
+
+        // 2. Subscribe to program logs
+        let subscribe_message = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "logsSubscribe",
+            "params": [
+                { "mentions": [self.program_id.to_string()] },
+                { "commitment": "finalized" }
+            ]
+        });
+
+        ws_stream
+            .send(Message::Text(subscribe_message.to_string()))
+            .await?;
+        println!("WebSocket subscribed to program logs.");
+
+        // 3. Receive and process logs
+        while let Some(msg_result) = ws_stream.next().await {
+            let msg = msg_result?;
+            if let Message::Text(text) = msg {
+                let json: Value = serde_json::from_str(&text)?;
+
+                if let Some(log_data) = json["result"]["value"]["logs"].as_array() {
+                    for log_str_val in log_data {
+                        if let Some(log_str) = log_str_val.as_str() {
+                            // Core step: Parse and send to Channel
+                            self.parse_and_send(log_str).await;
                         }
                     }
                 }
             }
-            Err(e) => {
-                eprintln!("Failed to connect to WebSocket: {:?}", e);
-                println!("Falling back to polling mode...");
-            }
         }
 
-        Ok(())
+        Ok(()) // Normal disconnection (uncommon)
+    }
+
+    // 4. Parse and send function
+    async fn parse_and_send(&self, log_str: &str) {
+        // Use external module for parsing
+        if let Some(parsed_event) = try_parse_event(log_str) {
+            // Send parsed result to Worker thread
+            if let Err(e) = self.event_sender.send(parsed_event).await {
+                eprintln!("Failed to send event to channel: Channel closed or full. Worker failure? Error: {:?}", e);
+                // Production environment may need more complex exit/alert logic
+            }
+        }
+        // If parsing fails (returns None), silently ignore the log line
     }
 
     fn rpc_url_to_ws_url(&self) -> String {
