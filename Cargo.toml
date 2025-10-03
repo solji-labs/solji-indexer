@@ -9,9 +9,12 @@ edition = "2021"
 # Async Runtime
 tokio = { version = "1", features = ["full"] }
 # Solana
-solana-client = "3.0.4"
+solana-client = "3.0.5"
 solana-sdk = "3.0.0"
 anchor-lang = { version = "0.31.1", features = ["derive"] }
+# WebSocket for real-time event listening
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
 
 # programs
 temple = { path = "../solji-program/anchor/programs/temple", features = [

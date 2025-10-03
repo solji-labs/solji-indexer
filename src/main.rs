@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Database initialized successfully");
 
     // Create fetcher
-    let fetcher = IndexerFetcher::new(&config.rpc_url, config.program_id);
+    let fetcher = IndexerFetcher::new(&config.rpc_url, config.program_id, db_pool.clone());
     let fetcher = Arc::new(RwLock::new(fetcher));
 
     // Create app state
@@ -49,6 +49,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Starting Indexer polling...");
         if let Err(e) = fetcher.start_polling().await {
             eprintln!("Indexer polling error: {:?}", e);
+        }
+    });
+
+    // Start the event listener
+    let fetcher_clone = fetcher.clone();
+    tokio::spawn(async move {
+        let fetcher = fetcher_clone.read().await;
+        println!("Starting event listener...");
+        if let Err(e) = fetcher.start_event_listener().await {
+            eprintln!("Event listener error: {:?}", e);
         }
     });
 
