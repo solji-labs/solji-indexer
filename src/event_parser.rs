@@ -4,14 +4,16 @@ use solana_sdk::pubkey::Pubkey;
 
 use crate::events::ProgramEvent;
 use temple::state::event::{
-    DonationCompleted, DonationNFTMinted, FortuneDrawn, IncenseBurned, RewardsProcessed,
-    WishCreated,
+    AmuletDropped, AmuletMinted, DonationCompleted, DonationNFTMinted, FortuneDrawn, IncenseBurned,
+    RewardsProcessed, WishCreated,
 };
 
 // Event discriminators from IDL
 const DONATION_COMPLETED_DISCRIMINATOR: [u8; 8] = [34, 178, 117, 6, 39, 189, 241, 48];
 const DONATION_NFT_MINTED_DISCRIMINATOR: [u8; 8] = [142, 88, 211, 148, 62, 90, 172, 20];
 const FORTUNE_DRAWN_DISCRIMINATOR: [u8; 8] = [134, 252, 88, 211, 24, 112, 209, 240];
+const AMULET_DROPPED_DISCRIMINATOR: [u8; 8] = [24, 100, 210, 40, 5, 63, 105, 27];
+const AMULET_MINTED_DISCRIMINATOR: [u8; 8] = [5, 74, 5, 29, 227, 131, 7, 204];
 const REWARDS_PROCESSED_DISCRIMINATOR: [u8; 8] = [217, 74, 206, 32, 228, 181, 17, 146];
 const WISH_CREATED_DISCRIMINATOR: [u8; 8] = [225, 167, 37, 207, 75, 1, 226, 130];
 const INCENSE_BURNED_DISCRIMINATOR: [u8; 8] = [211, 166, 224, 11, 104, 105, 175, 186];
@@ -135,6 +137,32 @@ fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
             })
         } else {
             println!("Failed to deserialize WishCreated");
+            None
+        }
+    } else if discriminator == &AMULET_DROPPED_DISCRIMINATOR {
+        println!("Matched AMULET_DROPPED_DISCRIMINATOR");
+        if let Ok(event) = AmuletDropped::try_from_slice(&decoded_bytes[8..]) {
+            Some(ProgramEvent::AmuletDropped {
+                user: Pubkey::new_from_array(event.user.to_bytes()),
+                source: event.source,
+                timestamp: event.timestamp,
+            })
+        } else {
+            println!("Failed to deserialize AmuletDropped");
+            None
+        }
+    } else if discriminator == &AMULET_MINTED_DISCRIMINATOR {
+        println!("Matched AMULET_MINTED_DISCRIMINATOR");
+        if let Ok(event) = AmuletMinted::try_from_slice(&decoded_bytes[8..]) {
+            Some(ProgramEvent::AmuletMinted {
+                user: Pubkey::new_from_array(event.user.to_bytes()),
+                amulet_mint: Pubkey::new_from_array(event.amulet_mint.to_bytes()),
+                source: event.source,
+                serial_number: event.serial_number,
+                timestamp: event.timestamp,
+            })
+        } else {
+            println!("Failed to deserialize AmuletMinted");
             None
         }
     } else if discriminator == &INCENSE_BURNED_DISCRIMINATOR {

@@ -212,6 +212,57 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
     .execute(pool.as_ref())
     .await?;
 
+    // Amulet Drop History table
+    sqlx::query(
+        r#"CREATE TABLE IF NOT EXISTS amulet_drop_history (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_pubkey VARCHAR(44) NOT NULL,
+            source VARCHAR(20) NOT NULL, -- 'fortune' or 'wish'
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_pubkey (user_pubkey),
+            INDEX idx_source (source),
+            INDEX idx_created_at (created_at)
+        )"#,
+    )
+    .execute(pool.as_ref())
+    .await?;
+
+    // User Amulet Collection table
+    sqlx::query(
+        r#"CREATE TABLE IF NOT EXISTS user_amulet_collection (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_pubkey VARCHAR(44) NOT NULL UNIQUE,
+            total_amulets INT NOT NULL DEFAULT 0,
+            draw_fortune_count INT NOT NULL DEFAULT 0,
+            make_wish_count INT NOT NULL DEFAULT 0,
+            pending_amulets INT NOT NULL DEFAULT 0,
+            last_updated BIGINT NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_pubkey (user_pubkey)
+        )"#,
+    )
+    .execute(pool.as_ref())
+    .await?;
+
+    // Amulet Mint History table
+    sqlx::query(
+        r#"CREATE TABLE IF NOT EXISTS amulet_mint_history (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_pubkey VARCHAR(44) NOT NULL,
+            amulet_mint VARCHAR(44) NOT NULL,
+            source VARCHAR(20) NOT NULL, -- 'fortune' or 'wish'
+            serial_number INT NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_pubkey (user_pubkey),
+            INDEX idx_amulet_mint (amulet_mint),
+            INDEX idx_source (source),
+            INDEX idx_created_at (created_at)
+        )"#,
+    )
+    .execute(pool.as_ref())
+    .await?;
+
     // Create indexes (ignore if already exists)
     let _ = sqlx::query(r#"CREATE INDEX idx_global_stats_updated_at ON global_stats(updated_at)"#)
         .execute(pool.as_ref())
@@ -702,6 +753,116 @@ pub async fn sync_shop_items(
 
     // Commit transaction
     tx.commit().await?;
+
+    Ok(())
+}
+
+/// insert amulet drop history
+pub async fn insert_amulet_drop_history(
+    pool: &DbPool,
+    user_pubkey: &str,
+    source: &str,
+    created_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO amulet_drop_history (
+            user_pubkey, source
+        ) VALUES (?, ?)
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(source)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// increment user amulet stats
+pub async fn increment_user_amulet_stats(
+    pool: &DbPool,
+    user_pubkey: &str,
+    source: &str,
+    updated_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    let (column, increment) = match source {
+        "fortune" => ("draw_fortune_count", 1),
+        "wish" => ("make_wish_count", 1),
+        _ => return Ok(()), // Unknown source, skip
+    };
+
+    sqlx::query(&format!(
+        r#"
+        INSERT INTO user_amulet_collection (
+            user_pubkey, total_amulets, {}, pending_amulets, last_updated, updated_at, created_at
+        ) VALUES (?, 1, ?, 1, ?, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+            total_amulets = total_amulets + 1,
+            {} = {} + 1,
+            pending_amulets = pending_amulets + 1,
+            last_updated = VALUES(last_updated),
+            updated_at = VALUES(updated_at)
+        "#,
+        column, column, increment
+    ))
+    .bind(user_pubkey)
+    .bind(increment)
+    .bind(updated_at.timestamp())
+    .bind(updated_at)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// insert amulet mint history
+pub async fn insert_amulet_mint_history(
+    pool: &DbPool,
+    user_pubkey: &str,
+    amulet_mint: &str,
+    source: &str,
+    serial_number: u32,
+    created_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO amulet_mint_history (
+            user_pubkey, amulet_mint, source, serial_number, created_at
+        ) VALUES (?, ?, ?, ?, ?)
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(amulet_mint)
+    .bind(source)
+    .bind(serial_number as i32)
+    .bind(created_at)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// decrement user pending amulets
+pub async fn decrement_user_pending_amulets(
+    pool: &DbPool,
+    user_pubkey: &str,
+    updated_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        UPDATE user_amulet_collection
+        SET pending_amulets = GREATEST(pending_amulets - 1, 0),
+            last_updated = ?,
+            updated_at = ?
+        WHERE user_pubkey = ?
+        "#,
+    )
+    .bind(updated_at.timestamp())
+    .bind(updated_at)
+    .bind(user_pubkey)
+    .execute(pool.as_ref())
+    .await?;
 
     Ok(())
 }

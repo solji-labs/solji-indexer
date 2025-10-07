@@ -63,6 +63,18 @@ pub enum ProgramEvent {
         amulet_dropped: bool,
         timestamp: i64,
     },
+    AmuletDropped {
+        user: Pubkey,
+        source: String, // "fortune" or "wish"
+        timestamp: i64,
+    },
+    AmuletMinted {
+        user: Pubkey,
+        amulet_mint: Pubkey,
+        source: String,
+        serial_number: u32,
+        timestamp: i64,
+    },
     IncenseBurned {
         user: Pubkey,
         incense_id: u8,

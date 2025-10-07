@@ -127,6 +127,29 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                     eprintln!("Worker #{}: Failed to handle IncenseBurned: {:?}", id, err);
                 }
             }
+            ProgramEvent::AmuletDropped {
+                user,
+                source,
+                timestamp,
+            } => {
+                if let Err(err) = handle_amulet_dropped(&pool, user, source, timestamp).await {
+                    eprintln!("Worker #{}: Failed to handle AmuletDropped: {:?}", id, err);
+                }
+            }
+            ProgramEvent::AmuletMinted {
+                user,
+                amulet_mint,
+                source,
+                serial_number,
+                timestamp,
+            } => {
+                if let Err(err) =
+                    handle_amulet_minted(&pool, user, amulet_mint, source, serial_number, timestamp)
+                        .await
+                {
+                    eprintln!("Worker #{}: Failed to handle AmuletMinted: {:?}", id, err);
+                }
+            }
             ProgramEvent::ShopConfigUpdated {
                 shop_config,
                 temple_config,
@@ -359,6 +382,64 @@ async fn handle_incense_burned(
         created_at,
     )
     .await?;
+
+    Ok(())
+}
+
+/// Handle AmuletDropped event
+async fn handle_amulet_dropped(
+    pool: &DbPool,
+    user: solana_sdk::pubkey::Pubkey,
+    source: String,
+    timestamp: i64,
+) -> Result<(), sqlx::Error> {
+    println!("Processing AmuletDropped: user={}, source={}", user, source);
+
+    let user_str = user.to_string();
+    let created_at =
+        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+
+    // 1. Insert amulet drop history
+    crate::db::insert_amulet_drop_history(&pool, &user_str, &source, created_at).await?;
+
+    // 2. Update user amulet collection stats
+    crate::db::increment_user_amulet_stats(&pool, &user_str, &source, created_at).await?;
+
+    Ok(())
+}
+
+/// Handle AmuletMinted event
+async fn handle_amulet_minted(
+    pool: &DbPool,
+    user: solana_sdk::pubkey::Pubkey,
+    amulet_mint: solana_sdk::pubkey::Pubkey,
+    source: String,
+    serial_number: u32,
+    timestamp: i64,
+) -> Result<(), sqlx::Error> {
+    println!(
+        "Processing AmuletMinted: user={}, amulet_mint={}, source={}, serial_number={}",
+        user, amulet_mint, source, serial_number
+    );
+
+    let user_str = user.to_string();
+    let amulet_mint_str = amulet_mint.to_string();
+    let created_at =
+        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+
+    // 1. Insert amulet mint history
+    crate::db::insert_amulet_mint_history(
+        &pool,
+        &user_str,
+        &amulet_mint_str,
+        &source,
+        serial_number,
+        created_at,
+    )
+    .await?;
+
+    // 2. Update user amulet collection stats (decrement pending, increment total)
+    crate::db::decrement_user_pending_amulets(&pool, &user_str, created_at).await?;
 
     Ok(())
 }
