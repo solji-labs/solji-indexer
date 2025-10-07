@@ -108,8 +108,11 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
         r#"CREATE TABLE IF NOT EXISTS user_states (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_pubkey VARCHAR(44) NOT NULL UNIQUE,
-            has_buddha_nft BOOLEAN NOT NULL DEFAULT FALSE,
-            has_medal_nft BOOLEAN NOT NULL DEFAULT FALSE,
+            merit BIGINT NOT NULL DEFAULT 0,
+            incense_points BIGINT NOT NULL DEFAULT 0,
+            total_donation_amount BIGINT NOT NULL DEFAULT 0,
+            total_wish_count INT NOT NULL DEFAULT 0,
+            total_fortune_draws INT NOT NULL DEFAULT 0,
             pending_random_request_id VARCHAR(64),
             pending_amulets INT NOT NULL DEFAULT 0,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -132,6 +135,23 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_user_pubkey (user_pubkey),
             INDEX idx_created_at (created_at)
+        )"#,
+    )
+    .execute(pool.as_ref())
+    .await?;
+
+    // Daily Incense Burn Count table
+    sqlx::query(
+        r#"CREATE TABLE IF NOT EXISTS daily_incense_burn_count (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_pubkey VARCHAR(44) NOT NULL,
+            incense_type INT NOT NULL,
+            burn_count INT NOT NULL DEFAULT 0,
+            date DATE NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_user_incense_date (user_pubkey, incense_type, date),
+            INDEX idx_user_pubkey_date (user_pubkey, date)
         )"#,
     )
     .execute(pool.as_ref())
@@ -670,7 +690,7 @@ pub async fn sync_shop_items(
         .bind(&item.name)
         .bind(&item.description)
         .bind(item.price as i64)
-        .bind(item.item_type as i32)
+        .bind(item.item_type.clone() as i32)
         .bind(item.stock as i64)
         .bind(item.is_available)
         .bind(merit)
@@ -701,4 +721,249 @@ pub async fn get_shop_items(
     .bind(shop_config_id)
     .fetch_all(pool.as_ref())
     .await
+}
+
+/// upsert user state NFT ownership (removed - NFT ownership now checked via ATA)
+
+/// increment global stats NFT count (removed - NFT ownership now checked via ATA)
+
+/// increment user fortune draws count
+pub async fn increment_user_fortune_draws(
+    pool: &DbPool,
+    user_pubkey: &str,
+    updated_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO user_states (
+            user_pubkey, total_fortune_draws, updated_at, created_at
+        ) VALUES (?, 1, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+            total_fortune_draws = total_fortune_draws + 1,
+            updated_at = VALUES(updated_at)
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(updated_at)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// increment global stats fortune draws
+pub async fn increment_global_stats_fortune_draws(
+    pool: &DbPool,
+    updated_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO global_stats (
+            total_draw_fortune, updated_at, created_at
+        ) VALUES (1, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+            total_draw_fortune = total_draw_fortune + 1,
+            updated_at = VALUES(updated_at)
+        "#,
+    )
+    .bind(updated_at)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// increment user wish count
+pub async fn increment_user_wish_count(
+    pool: &DbPool,
+    user_pubkey: &str,
+    updated_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO user_states (
+            user_pubkey, total_wish_count, updated_at, created_at
+        ) VALUES (?, 1, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+            total_wish_count = total_wish_count + 1,
+            updated_at = VALUES(updated_at)
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(updated_at)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// increment global stats wishes
+pub async fn increment_global_stats_wishes(
+    pool: &DbPool,
+    updated_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO global_stats (
+            total_wishes, updated_at, created_at
+        ) VALUES (1, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+            total_wishes = total_wishes + 1,
+            updated_at = VALUES(updated_at)
+        "#,
+    )
+    .bind(updated_at)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// check if user can burn incense (daily limit check)
+pub async fn check_daily_incense_limit(
+    pool: &DbPool,
+    user_pubkey: &str,
+    incense_type: i32,
+    amount: i32,
+) -> Result<bool, sqlx::Error> {
+    let today = chrono::Utc::now().date_naive();
+
+    // Get current burn count for today
+    let result = sqlx::query_as::<_, DailyIncenseBurnCount>(
+        r#"
+        SELECT * FROM daily_incense_burn_count
+        WHERE user_pubkey = ? AND incense_type = ? AND date = ?
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(incense_type)
+    .bind(today)
+    .fetch_optional(pool.as_ref())
+    .await?;
+
+    let current_count = result.map(|r| r.burn_count).unwrap_or(0);
+    let max_daily_limit = 10; // Maximum 10 burns per incense type per day
+
+    Ok(current_count + amount <= max_daily_limit)
+}
+
+/// update daily incense burn count
+pub async fn update_daily_incense_burn_count(
+    pool: &DbPool,
+    user_pubkey: &str,
+    incense_type: i32,
+    amount: i32,
+) -> Result<(), sqlx::Error> {
+    let today = chrono::Utc::now().date_naive();
+
+    sqlx::query(
+        r#"
+        INSERT INTO daily_incense_burn_count (
+            user_pubkey, incense_type, burn_count, date, updated_at
+        ) VALUES (?, ?, ?, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+            burn_count = burn_count + VALUES(burn_count),
+            updated_at = NOW()
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(incense_type)
+    .bind(amount)
+    .bind(today)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// update user incense balance and add incense burn history
+pub async fn update_user_incense_and_history(
+    pool: &DbPool,
+    user_pubkey: &str,
+    incense_type: i32,
+    incense_amount: i32,
+    merit_gained: i64,
+    incense_points_gained: i64,
+    transaction_signature: &str,
+    updated_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    // Start transaction
+    let mut tx = pool.begin().await?;
+
+    // 1. Insert incense burn history
+    sqlx::query(
+        r#"
+        INSERT INTO incense_burn_history (
+            user_pubkey, incense_type, incense_amount,
+            merit_gained, incense_points_gained, transaction_signature
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(incense_type)
+    .bind(incense_amount)
+    .bind(merit_gained)
+    .bind(incense_points_gained)
+    .bind(transaction_signature)
+    .execute(&mut *tx)
+    .await?;
+
+    // 2. Update daily burn count
+    sqlx::query(
+        r#"
+        INSERT INTO daily_incense_burn_count (
+            user_pubkey, incense_type, burn_count, date, updated_at
+        ) VALUES (?, ?, ?, CURDATE(), NOW())
+        ON DUPLICATE KEY UPDATE
+            burn_count = burn_count + VALUES(burn_count),
+            updated_at = NOW()
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(incense_type)
+    .bind(incense_amount)
+    .execute(&mut *tx)
+    .await?;
+
+    // 3. Update user state with gained values
+    sqlx::query(
+        r#"
+        INSERT INTO user_states (
+            user_pubkey, merit, incense_points, updated_at, created_at
+        ) VALUES (?, ?, ?, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+            merit = merit + VALUES(merit),
+            incense_points = incense_points + VALUES(incense_points),
+            updated_at = VALUES(updated_at)
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(merit_gained)
+    .bind(incense_points_gained)
+    .bind(updated_at)
+    .execute(&mut *tx)
+    .await?;
+
+    // 4. Update global stats
+    sqlx::query(
+        r#"
+        INSERT INTO global_stats (
+            total_merit, total_incense_points, total_donations_sol, total_users, total_wishes, updated_at, created_at
+        ) VALUES (?, ?, 0.0, 0, 0, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+            total_merit = total_merit + VALUES(total_merit),
+            total_incense_points = total_incense_points + VALUES(total_incense_points),
+            updated_at = VALUES(updated_at)
+        "#,
+    )
+    .bind(merit_gained)
+    .bind(incense_points_gained)
+    .bind(updated_at)
+    .execute(&mut *tx)
+    .await?;
+
+    // Commit transaction
+    tx.commit().await?;
+
+    Ok(())
 }

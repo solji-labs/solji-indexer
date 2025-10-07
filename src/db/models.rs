@@ -75,8 +75,6 @@ pub struct Wish {
 pub struct UserState {
     pub id: i32,
     pub user_pubkey: String,
-    pub has_buddha_nft: bool,
-    pub has_medal_nft: bool,
     pub pending_random_request_id: Option<String>,
     pub pending_amulets: i32,
     pub created_at: DateTime<Utc>,
@@ -106,6 +104,18 @@ pub struct FortuneDrawHistory {
     pub is_free: bool,
     pub transaction_signature: String,
     pub created_at: DateTime<Utc>,
+}
+
+// DailyIncenseBurnCount
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct DailyIncenseBurnCount {
+    pub id: i32,
+    pub user_pubkey: String,
+    pub incense_type: i32,
+    pub burn_count: i32,
+    pub date: chrono::NaiveDate,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 // ShopItem

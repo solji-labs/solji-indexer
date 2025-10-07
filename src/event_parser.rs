@@ -4,7 +4,8 @@ use solana_sdk::pubkey::Pubkey;
 
 use crate::events::ProgramEvent;
 use temple::state::event::{
-    DonationCompleted, DonationNFTMinted, FortuneDrawn, RewardsProcessed, WishCreated,
+    DonationCompleted, DonationNFTMinted, FortuneDrawn, IncenseBurned, RewardsProcessed,
+    WishCreated,
 };
 
 // Event discriminators from IDL
@@ -13,32 +14,62 @@ const DONATION_NFT_MINTED_DISCRIMINATOR: [u8; 8] = [142, 88, 211, 148, 62, 90, 1
 const FORTUNE_DRAWN_DISCRIMINATOR: [u8; 8] = [134, 252, 88, 211, 24, 112, 209, 240];
 const REWARDS_PROCESSED_DISCRIMINATOR: [u8; 8] = [217, 74, 206, 32, 228, 181, 17, 146];
 const WISH_CREATED_DISCRIMINATOR: [u8; 8] = [225, 167, 37, 207, 75, 1, 226, 130];
+const INCENSE_BURNED_DISCRIMINATOR: [u8; 8] = [211, 166, 224, 11, 104, 105, 175, 186];
 
 const EVENT_PREFIX: &str = "Program log: ";
 const ANCHOR_EVENT_LABEL: &str = "Event:";
+const PROGRAM_DATA_PREFIX: &str = "Program data: ";
 
 /// Core function: Try to parse an Anchor event from a log string
 pub fn try_parse_event(log_str: &str) -> Option<ProgramEvent> {
-    // 1. Find event prefix
-    let event_log = log_str.strip_prefix(EVENT_PREFIX)?;
-    let base64_data = event_log.strip_prefix(ANCHOR_EVENT_LABEL)?;
+    println!("try_parse_event called with log: {}", log_str);
 
+    // Check for "Program log: Event:" format first
+    if let Some(event_log) = log_str.strip_prefix(EVENT_PREFIX) {
+        println!("Found event prefix, remaining: {}", event_log);
+        if let Some(base64_data) = event_log.strip_prefix(ANCHOR_EVENT_LABEL) {
+            println!("Found anchor event label, base64 data: {}", base64_data);
+            return parse_base64_event(base64_data);
+        }
+    }
+
+    // Also check for "Program data:" format (contains event data)
+    if let Some(data_part) = log_str.strip_prefix(PROGRAM_DATA_PREFIX) {
+        println!(
+            "Found program data prefix, base64 data: {}",
+            data_part.trim()
+        );
+        return parse_base64_event(data_part.trim());
+    }
+
+    None
+}
+
+fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
     // 2. Base64 decode
     let decoded_bytes = match general_purpose::STANDARD.decode(base64_data.trim()) {
         Ok(bytes) => bytes,
-        Err(_) => return None,
+        Err(e) => {
+            println!("Base64 decode failed: {:?}", e);
+            return None;
+        }
     };
+
+    println!("Decoded {} bytes", decoded_bytes.len());
 
     // Ensure data is long enough (8 bytes discriminator)
     if decoded_bytes.len() < 8 {
+        println!("Data too short, need at least 8 bytes");
         return None;
     }
 
     // Extract discriminator
     let discriminator = &decoded_bytes[0..8];
+    println!("Discriminator: {:?}", discriminator);
 
     // 3. Match discriminator and deserialize (skip the 8-byte discriminator)
     if discriminator == &DONATION_COMPLETED_DISCRIMINATOR {
+        println!("Matched DONATION_COMPLETED_DISCRIMINATOR");
         if let Ok(event) = DonationCompleted::try_from_slice(&decoded_bytes[8..]) {
             Some(ProgramEvent::DonationCompleted {
                 user: Pubkey::new_from_array(event.user.to_bytes()),
@@ -48,9 +79,11 @@ pub fn try_parse_event(log_str: &str) -> Option<ProgramEvent> {
                 timestamp: event.timestamp,
             })
         } else {
+            println!("Failed to deserialize DonationCompleted");
             None
         }
     } else if discriminator == &DONATION_NFT_MINTED_DISCRIMINATOR {
+        println!("Matched DONATION_NFT_MINTED_DISCRIMINATOR");
         if let Ok(event) = DonationNFTMinted::try_from_slice(&decoded_bytes[8..]) {
             Some(ProgramEvent::DonationNFTMinted {
                 user: Pubkey::new_from_array(event.user.to_bytes()),
@@ -60,9 +93,11 @@ pub fn try_parse_event(log_str: &str) -> Option<ProgramEvent> {
                 timestamp: event.timestamp,
             })
         } else {
+            println!("Failed to deserialize DonationNFTMinted");
             None
         }
     } else if discriminator == &FORTUNE_DRAWN_DISCRIMINATOR {
+        println!("Matched FORTUNE_DRAWN_DISCRIMINATOR");
         if let Ok(event) = FortuneDrawn::try_from_slice(&decoded_bytes[8..]) {
             Some(ProgramEvent::FortuneDrawn {
                 user: Pubkey::new_from_array(event.user.to_bytes()),
@@ -72,9 +107,11 @@ pub fn try_parse_event(log_str: &str) -> Option<ProgramEvent> {
                 timestamp: event.timestamp,
             })
         } else {
+            println!("Failed to deserialize FortuneDrawn");
             None
         }
     } else if discriminator == &REWARDS_PROCESSED_DISCRIMINATOR {
+        println!("Matched REWARDS_PROCESSED_DISCRIMINATOR");
         if let Ok(event) = RewardsProcessed::try_from_slice(&decoded_bytes[8..]) {
             Some(ProgramEvent::RewardsProcessed {
                 user: Pubkey::new_from_array(event.user.to_bytes()),
@@ -83,9 +120,11 @@ pub fn try_parse_event(log_str: &str) -> Option<ProgramEvent> {
                 timestamp: event.timestamp,
             })
         } else {
+            println!("Failed to deserialize RewardsProcessed");
             None
         }
     } else if discriminator == &WISH_CREATED_DISCRIMINATOR {
+        println!("Matched WISH_CREATED_DISCRIMINATOR");
         if let Ok(event) = WishCreated::try_from_slice(&decoded_bytes[8..]) {
             Some(ProgramEvent::WishCreated {
                 user: Pubkey::new_from_array(event.user.to_bytes()),
@@ -95,10 +134,28 @@ pub fn try_parse_event(log_str: &str) -> Option<ProgramEvent> {
                 timestamp: event.timestamp,
             })
         } else {
+            println!("Failed to deserialize WishCreated");
+            None
+        }
+    } else if discriminator == &INCENSE_BURNED_DISCRIMINATOR {
+        println!("Matched INCENSE_BURNED_DISCRIMINATOR");
+        if let Ok(event) = IncenseBurned::try_from_slice(&decoded_bytes[8..]) {
+            println!(
+                "Successfully parsed IncenseBurned event: user={}, incense_id={}, amount={}",
+                event.user, event.incense_id, event.amount
+            );
+            Some(ProgramEvent::IncenseBurned {
+                user: Pubkey::new_from_array(event.user.to_bytes()),
+                incense_id: event.incense_id,
+                amount: event.amount,
+                timestamp: event.timestamp,
+            })
+        } else {
+            println!("Failed to deserialize IncenseBurned");
             None
         }
     } else {
-        // Note: IncenseBurned event not found in IDL, will be handled separately if needed
+        println!("Unknown discriminator: {:?}", discriminator);
         None // Unknown event type, silently ignore
     }
 }

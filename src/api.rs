@@ -3,7 +3,7 @@ use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::db::{get_latest_global_stats, DbPool};
+use crate::db::{check_daily_incense_limit, get_latest_global_stats, DbPool};
 use crate::indexer::fetcher::IndexerFetcher;
 use crate::utils::config::Config;
 
@@ -19,6 +19,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/health", get(health_check))
         .route("/api/stats", get(get_global_stats))
         .route("/stats/global", get(get_global_stats))
+        .route("/api/incense/can-burn", get(check_can_burn_incense))
         .with_state(state)
 }
 
@@ -63,6 +64,39 @@ async fn get_global_stats(
         }
         Err(e) => {
             eprintln!("Database error: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn check_can_burn_incense(
+    State(state): State<AppState>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Extract query parameters
+    let user_pubkey = params.get("user").ok_or(StatusCode::BAD_REQUEST)?;
+    let incense_type_str = params.get("incense_type").ok_or(StatusCode::BAD_REQUEST)?;
+    let amount_str = params.get("amount").ok_or(StatusCode::BAD_REQUEST)?;
+
+    let incense_type: i32 = incense_type_str
+        .parse()
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+    let amount: i32 = amount_str.parse().map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    // Check daily limit
+    match check_daily_incense_limit(&state.db_pool, user_pubkey, incense_type, amount).await {
+        Ok(can_burn) => {
+            let response = json!({
+                "can_burn": can_burn,
+                "user": user_pubkey,
+                "incense_type": incense_type,
+                "requested_amount": amount,
+                "max_daily_limit": 10
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error checking incense limit: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

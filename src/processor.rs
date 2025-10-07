@@ -227,10 +227,8 @@ async fn handle_donation_nft_minted(
         user, nft_mint, level, serial_number
     );
 
-    // TODO: Implement database operations for NFT minted
-    // This would typically involve:
-    // 1. Insert NFT record
-    // 2. Update user state
+    // NFT ownership is now checked via ATA (Associated Token Account)
+    // No database updates needed for this event
 
     Ok(())
 }
@@ -249,11 +247,26 @@ async fn handle_fortune_drawn(
         user, fortune_result, used_merit, amulet_dropped
     );
 
-    // TODO: Implement database operations for fortune drawn
-    // This would typically involve:
+    let user_str = user.to_string();
+    let created_at =
+        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+
     // 1. Insert fortune draw history
-    // 2. Update user state
+    crate::db::insert_fortune_draw_history(
+        &pool,
+        &user_str,
+        &fortune_result,
+        if used_merit { 100 } else { 0 }, // Assuming merit cost is 100
+        !used_merit,
+        "", // transaction_signature - would need to be passed from event
+    )
+    .await?;
+
+    // 2. Update user state (increment fortune draws count)
+    crate::db::increment_user_fortune_draws(&pool, &user_str, created_at).await?;
+
     // 3. Update global stats
+    crate::db::increment_global_stats_fortune_draws(&pool, created_at).await?;
 
     Ok(())
 }
@@ -272,11 +285,28 @@ async fn handle_wish_created(
         user, wish_id, is_anonymous, amulet_dropped
     );
 
-    // TODO: Implement database operations for wish created
-    // This would typically involve:
-    // 1. Insert wish record
-    // 2. Update user state
+    let user_str = user.to_string();
+    let created_at =
+        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+
+    // 1. Insert wish record (content would need to be passed from event)
+    // For now, we'll insert with placeholder content
+    crate::db::upsert_wish(
+        &pool,
+        wish_id,
+        &user_str,
+        "Wish content", // TODO: Pass actual content from event
+        0,              // initial likes
+        created_at,
+        created_at,
+    )
+    .await?;
+
+    // 2. Update user state (increment wish count)
+    crate::db::increment_user_wish_count(&pool, &user_str, created_at).await?;
+
     // 3. Update global stats
+    crate::db::increment_global_stats_wishes(&pool, created_at).await?;
 
     Ok(())
 }
@@ -294,12 +324,41 @@ async fn handle_incense_burned(
         user, incense_id, amount
     );
 
-    // TODO: Implement database operations for incense burned
-    // This would typically involve:
-    // 1. Insert incense burn history
-    // 2. Update user state
-    // 3. Update global stats
-    // 4. Update leaderboard
+    let user_str = user.to_string();
+    let created_at =
+        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+
+    // // Check daily limit before processing
+    // let can_burn =
+    //     crate::db::check_daily_incense_limit(&pool, &user_str, incense_id as i32, amount as i32)
+    //         .await?;
+
+    // if !can_burn {
+    //     println!(
+    //         "Daily limit exceeded for user {} incense type {}, amount {}",
+    //         user_str, incense_id, amount
+    //     );
+
+    // }
+
+    // Calculate rewards based on incense type (this should match the contract logic)
+    // For now, we'll use placeholder values - in real implementation, this should
+    // query the temple config to get the exact merit and incense_points values
+    let merit_gained = 10 * amount as i64; // Placeholder: 10 merit per incense
+    let incense_points_gained = 100 * amount as i64; // Placeholder: 100 incense points per incense
+
+    // Update user incense balance, insert history, and update global stats atomically
+    crate::db::update_user_incense_and_history(
+        &pool,
+        &user_str,
+        incense_id as i32,
+        amount as i32,
+        merit_gained,
+        incense_points_gained,
+        "", // transaction_signature - would need to be passed from event
+        created_at,
+    )
+    .await?;
 
     Ok(())
 }

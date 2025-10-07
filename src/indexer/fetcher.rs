@@ -91,16 +91,36 @@ impl IndexerFetcher {
         while let Some(msg_result) = ws_stream.next().await {
             let msg = msg_result?;
             if let Message::Text(text) = msg {
+                println!("Received WebSocket message: {}", text);
                 let json: Value = serde_json::from_str(&text)?;
 
-                if let Some(log_data) = json["result"]["value"]["logs"].as_array() {
+                // Check for subscription confirmation first
+                if json.get("result").is_some() && json.get("id").is_some() {
+                    println!("WebSocket subscription confirmed");
+                    continue;
+                }
+
+                // Parse notification messages with logs
+                if let Some(log_data) = json
+                    .get("params")
+                    .and_then(|p| p.get("result"))
+                    .and_then(|r| r.get("value"))
+                    .and_then(|v| v.get("logs"))
+                    .and_then(|l| l.as_array())
+                {
+                    println!("Found {} log entries in message", log_data.len());
                     for log_str_val in log_data {
                         if let Some(log_str) = log_str_val.as_str() {
+                            println!("Processing log: {}", log_str);
                             // Core step: Parse and send to Channel
                             self.parse_and_send(log_str).await;
                         }
                     }
+                } else {
+                    println!("No logs array found in message");
                 }
+            } else {
+                println!("Received non-text WebSocket message: {:?}", msg);
             }
         }
 
@@ -122,7 +142,12 @@ impl IndexerFetcher {
 
     fn rpc_url_to_ws_url(&self) -> String {
         // Convert HTTP RPC URL to WebSocket URL
-        if self.rpc_client.url().starts_with("https://") {
+        // Special handling for local testnet: RPC on 8899, WebSocket on 8900
+        if self.rpc_client.url().starts_with("http://127.0.0.1:8899")
+            || self.rpc_client.url().starts_with("http://localhost:8899")
+        {
+            "ws://127.0.0.1:8900".to_string()
+        } else if self.rpc_client.url().starts_with("https://") {
             self.rpc_client.url().replacen("https://", "wss://", 1)
         } else if self.rpc_client.url().starts_with("http://") {
             self.rpc_client.url().replacen("http://", "ws://", 1)
