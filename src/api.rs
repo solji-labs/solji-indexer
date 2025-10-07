@@ -3,7 +3,7 @@ use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::db::{check_daily_incense_limit, get_latest_global_stats, DbPool};
+use crate::db::{check_daily_incense_limit, get_latest_global_stats, get_wishes, DbPool};
 use crate::indexer::fetcher::IndexerFetcher;
 use crate::utils::config::Config;
 
@@ -20,6 +20,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/stats", get(get_global_stats))
         .route("/stats/global", get(get_global_stats))
         .route("/api/incense/can-burn", get(check_can_burn_incense))
+        .route("/api/wishes", get(get_wishes_paginated))
         .with_state(state)
 }
 
@@ -97,6 +98,52 @@ async fn check_can_burn_incense(
         }
         Err(e) => {
             eprintln!("Database error checking incense limit: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn get_wishes_paginated(
+    State(state): State<AppState>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Extract query parameters with defaults
+    let limit_str = params.get("limit").map(|s| s.as_str()).unwrap_or("20");
+    let offset_str = params.get("offset").map(|s| s.as_str()).unwrap_or("0");
+
+    let limit: i32 = limit_str.parse().unwrap_or(20).min(100); // Max 100 per page
+    let offset: i32 = offset_str.parse().unwrap_or(0).max(0);
+
+    // Get wishes from database
+    match get_wishes(&state.db_pool, limit, offset).await {
+        Ok(wishes) => {
+            let wishes_data: Vec<serde_json::Value> = wishes
+                .into_iter()
+                .map(|wish| {
+                    json!({
+                        "id": wish.id,
+                        "wish_id": wish.wish_id,
+                        "user_pubkey": wish.user_pubkey,
+                        "content": wish.content,
+                        "likes": wish.likes,
+                        "created_at": wish.created_at.to_rfc3339(),
+                        "updated_at": wish.updated_at.to_rfc3339()
+                    })
+                })
+                .collect();
+
+            let response = json!({
+                "wishes": wishes_data,
+                "pagination": {
+                    "limit": limit,
+                    "offset": offset,
+                    "count": wishes_data.len()
+                }
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting wishes: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
