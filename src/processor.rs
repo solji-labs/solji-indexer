@@ -98,6 +98,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
             ProgramEvent::WishCreated {
                 user,
                 wish_id,
+                content_hash,
                 is_anonymous,
                 amulet_dropped,
                 timestamp,
@@ -106,6 +107,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                     &pool,
                     user,
                     wish_id,
+                    &content_hash,
                     is_anonymous,
                     amulet_dropped,
                     timestamp,
@@ -113,6 +115,21 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                 .await
                 {
                     eprintln!("Worker #{}: Failed to handle WishCreated: {:?}", id, err);
+                }
+            }
+            ProgramEvent::WishTowerUpdated {
+                user,
+                wish_count,
+                level,
+                timestamp,
+            } => {
+                if let Err(err) =
+                    handle_wish_tower_updated(&pool, user, wish_count, level, timestamp).await
+                {
+                    eprintln!(
+                        "Worker #{}: Failed to handle WishTowerUpdated: {:?}",
+                        id, err
+                    );
                 }
             }
             ProgramEvent::IncenseBurned {
@@ -299,27 +316,30 @@ async fn handle_wish_created(
     pool: &DbPool,
     user: solana_sdk::pubkey::Pubkey,
     wish_id: u64,
+    content_hash: &[u8; 32],
     is_anonymous: bool,
     amulet_dropped: bool,
     timestamp: i64,
 ) -> Result<(), sqlx::Error> {
     println!(
-        "Processing WishCreated: user={}, wish_id={}, is_anonymous={}, amulet_dropped={}",
-        user, wish_id, is_anonymous, amulet_dropped
+        "Processing WishCreated: user={}, wish_id={}, content_hash_len={}, is_anonymous={}, amulet_dropped={}",
+        user, wish_id, content_hash.len(), is_anonymous, amulet_dropped
     );
 
     let user_str = user.to_string();
     let created_at =
         chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
 
-    // 1. Insert wish record (content would need to be passed from event)
-    // For now, we'll insert with placeholder content
+    // Convert content_hash to hex string for storage
+    let content_hash_hex = hex::encode(content_hash);
+
+    // 1. Insert wish record with content hash
     crate::db::upsert_wish(
         &pool,
         wish_id,
         &user_str,
-        "Wish content", // TODO: Pass actual content from event
-        0,              // initial likes
+        &content_hash_hex, // Store content hash as hex string
+        0,                 // initial likes
         created_at,
         created_at,
     )
@@ -440,6 +460,33 @@ async fn handle_amulet_minted(
 
     // 2. Update user amulet collection stats (decrement pending, increment total)
     crate::db::decrement_user_pending_amulets(&pool, &user_str, created_at).await?;
+
+    Ok(())
+}
+
+/// Handle WishTowerUpdated event
+async fn handle_wish_tower_updated(
+    pool: &DbPool,
+    user: solana_sdk::pubkey::Pubkey,
+    wish_count: u32,
+    level: u8,
+    timestamp: i64,
+) -> Result<(), sqlx::Error> {
+    println!(
+        "Processing WishTowerUpdated: user={}, wish_count={}, level={}",
+        user, wish_count, level
+    );
+
+    let user_str = user.to_string();
+    let updated_at =
+        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+
+    // For now, we don't have a specific wish_tower table in the database
+    // This event is mainly for tracking tower progress, but since the tower
+    // state is stored on-chain, we might not need to store it in the database
+    // unless we want to track historical tower states.
+
+    // TODO: Consider adding a wish_towers table if we need to track tower progress
 
     Ok(())
 }

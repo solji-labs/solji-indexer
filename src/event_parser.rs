@@ -127,10 +127,18 @@ fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
         }
     } else if discriminator == &WISH_CREATED_DISCRIMINATOR {
         println!("Matched WISH_CREATED_DISCRIMINATOR");
+        println!("Decoded bytes length: {}", decoded_bytes.len());
+        println!(
+            "Event data (after discriminator): {:?}",
+            &decoded_bytes[8..]
+        );
         if let Ok(event) = WishCreated::try_from_slice(&decoded_bytes[8..]) {
+            println!("Successfully deserialized WishCreated: user={}, wish_id={}, is_anonymous={}, amulet_dropped={}, timestamp={}",
+                     event.user, event.wish_id, event.is_anonymous, event.amulet_dropped, event.timestamp);
             Some(ProgramEvent::WishCreated {
                 user: Pubkey::new_from_array(event.user.to_bytes()),
                 wish_id: event.wish_id,
+                content_hash: event.content_hash,
                 is_anonymous: event.is_anonymous,
                 amulet_dropped: event.amulet_dropped,
                 timestamp: event.timestamp,

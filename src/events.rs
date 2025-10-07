@@ -59,8 +59,15 @@ pub enum ProgramEvent {
     WishCreated {
         user: Pubkey,
         wish_id: u64,
+        content_hash: [u8; 32],
         is_anonymous: bool,
         amulet_dropped: bool,
+        timestamp: i64,
+    },
+    WishTowerUpdated {
+        user: Pubkey,
+        wish_count: u32,
+        level: u8,
         timestamp: i64,
     },
     AmuletDropped {
