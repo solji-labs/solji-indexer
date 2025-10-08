@@ -4,7 +4,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::db::{
-    check_daily_incense_limit, get_aggregated_global_stats,
+    check_daily_incense_limit, check_user_in_top_10000_donors, get_aggregated_global_stats,
+    get_donation_leaderboard as get_donation_leaderboard_db,
     get_parsed_incense_leaderboard_by_period, get_wishes, update_incense_leaderboard_all_periods,
     DbPool,
 };
@@ -22,10 +23,17 @@ pub fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_check))
         .route("/api/stats", get(get_global_stats))
-        .route("/stats/global", get(get_global_stats))
         .route("/api/incense/can-burn", get(check_can_burn_incense))
         .route("/api/wishes", get(get_wishes_paginated))
         .route("/api/incense/leaderboard", get(get_incense_leaderboard))
+        .route(
+            "/api/donation/leaderboard",
+            get(get_donation_leaderboard_api),
+        )
+        .route(
+            "/api/donation/check-top-10000",
+            get(check_user_top_10000_donors),
+        )
         .route(
             "/api/admin/update-leaderboard",
             get(update_leaderboard_admin),
@@ -186,6 +194,71 @@ async fn get_incense_leaderboard(
         }
         Err(e) => {
             eprintln!("Database error getting incense leaderboard: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn get_donation_leaderboard_api(
+    State(state): State<AppState>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Extract query parameters with defaults
+    let limit_str = params.get("limit").map(|s| s.as_str()).unwrap_or("100");
+    let offset_str = params.get("offset").map(|s| s.as_str()).unwrap_or("0");
+
+    let limit: usize = limit_str.parse().unwrap_or(100).min(1000); // Max 1000 per page
+    let offset: usize = offset_str.parse().unwrap_or(0).max(0);
+
+    // Get leaderboard from database (already paginated)
+    match get_donation_leaderboard_db(&state.db_pool, limit, offset).await {
+        Ok(leaderboard) => {
+            let leaderboard_data: Vec<serde_json::Value> = leaderboard
+                .into_iter()
+                .map(|entry| {
+                    json!({
+                        "rank": entry.rank,
+                        "user_pubkey": entry.user_pubkey,
+                        "total_donated": entry.total_donated
+                    })
+                })
+                .collect();
+
+            let response = json!({
+                "leaderboard": leaderboard_data,
+                "pagination": {
+                    "limit": limit,
+                    "offset": offset,
+                    "count": leaderboard_data.len()
+                }
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting donation leaderboard: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn check_user_top_10000_donors(
+    State(state): State<AppState>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Extract query parameter
+    let user_pubkey = params.get("user").ok_or(StatusCode::BAD_REQUEST)?;
+
+    // Check if user is in top 10000 donors
+    match check_user_in_top_10000_donors(&state.db_pool, user_pubkey).await {
+        Ok(is_in_top_10000) => {
+            let response = json!({
+                "user_pubkey": user_pubkey,
+                "is_in_top_10000": is_in_top_10000
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error checking user top 10000 donors: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

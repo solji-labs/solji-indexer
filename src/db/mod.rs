@@ -1,6 +1,7 @@
 pub mod models;
 
 use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 use sqlx::mysql::MySqlPool;
 use sqlx::MySqlPool as SqlxMySqlPool;
 use std::sync::Arc;
@@ -29,25 +30,12 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
     .execute(pool.as_ref())
     .await?;
 
-    // Donation Leaderboard table
-    sqlx::query(
-        r#"CREATE TABLE IF NOT EXISTS donation_leaderboard (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            program_id VARCHAR(44) NOT NULL UNIQUE,
-            top_donors TEXT NOT NULL,
-            updated_at DATETIME NOT NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )"#,
-    )
-    .execute(pool.as_ref())
-    .await?;
-
     // User Donations table
     sqlx::query(
         r#"CREATE TABLE IF NOT EXISTS user_donations (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_pubkey VARCHAR(44) NOT NULL,
-            total_donated DOUBLE NOT NULL,
+            total_donated BIGINT NOT NULL,
             donation_count INT NOT NULL,
             last_donation_at  DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,
@@ -282,22 +270,29 @@ pub async fn get_aggregated_global_stats(pool: &DbPool) -> Result<GlobalStats, s
         .await?;
 
     // Get total donations and donation amount from user_donations table
-    let donation_stats = sqlx::query_as::<_, (i64, i64)>(
-        "SELECT COALESCE(SUM(donation_count), 0), COALESCE(SUM(total_donated * 1000000000), 0) FROM user_donations"
+    // Use CAST to force BIGINT type for SUM results
+    let donation_count: i64 = sqlx::query_scalar(
+        "SELECT CAST(COALESCE(SUM(donation_count), 0) AS SIGNED) FROM user_donations",
+    )
+    .fetch_one(pool.as_ref())
+    .await?;
+
+    let total_donated_lamports: i64 = sqlx::query_scalar(
+        "SELECT CAST(COALESCE(SUM(total_donated), 0) AS SIGNED) FROM user_donations",
     )
     .fetch_one(pool.as_ref())
     .await?;
 
     // Get total merit and incense points from user_states table
     let user_stats = sqlx::query_as::<_, (i64, i64)>(
-        "SELECT COALESCE(SUM(merit), 0), COALESCE(SUM(incense_points), 0) FROM user_states",
+        "SELECT CAST(COALESCE(SUM(merit), 0) AS SIGNED), CAST(COALESCE(SUM(incense_points), 0) AS SIGNED) FROM user_states",
     )
     .fetch_one(pool.as_ref())
     .await?;
 
     // Get total merit and incense points distributed from incense_burn_history table
     let distributed_stats = sqlx::query_as::<_, (i64, i64)>(
-        "SELECT COALESCE(SUM(merit_gained), 0), COALESCE(SUM(incense_points_gained), 0) FROM incense_burn_history"
+        "SELECT CAST(COALESCE(SUM(merit_gained), 0) AS SIGNED), CAST(COALESCE(SUM(incense_points_gained), 0) AS SIGNED) FROM incense_burn_history"
     )
     .fetch_one(pool.as_ref())
     .await?;
@@ -309,15 +304,18 @@ pub async fn get_aggregated_global_stats(pool: &DbPool) -> Result<GlobalStats, s
             .await?;
 
     // Get total donations SOL (convert from lamports to SOL)
-    let total_donations_sol = donation_stats.1 as f64 / 1_000_000_000.0;
+    let total_donations_sol = total_donated_lamports as f64 / 1_000_000_000.0;
 
-    // Get latest update time from any table
-    let latest_update = sqlx::query_scalar::<_, Option<chrono::DateTime<chrono::Utc>>>(
+    // Get latest update time from any table (use a more robust query)
+    let latest_update = match sqlx::query_scalar::<_, chrono::DateTime<chrono::Utc>>(
         "SELECT updated_at FROM user_states ORDER BY updated_at DESC LIMIT 1",
     )
-    .fetch_one(pool.as_ref())
+    .fetch_optional(pool.as_ref())
     .await?
-    .unwrap_or_else(|| chrono::Utc::now());
+    {
+        Some(timestamp) => timestamp,
+        None => chrono::Utc::now(), // If no data, use current time
+    };
 
     Ok(GlobalStats {
         id: 0, // This won't be used since we're aggregating
@@ -326,8 +324,8 @@ pub async fn get_aggregated_global_stats(pool: &DbPool) -> Result<GlobalStats, s
         total_donations_sol,
         total_users: total_users_result as i32,
         total_wishes: total_wishes_result as i32,
-        total_donations: donation_stats.0 as i32,
-        total_donation_amount: donation_stats.1,
+        total_donations: donation_count as i32,
+        total_donation_amount: total_donated_lamports, // Already in lamports
         total_merit_distributed: distributed_stats.0,
         total_incense_points_distributed: distributed_stats.1,
         total_draw_fortune: total_draw_fortune_result as i32,
@@ -344,8 +342,6 @@ pub async fn upsert_user_donation(
     last_donation_at: Option<DateTime<Utc>>,
     updated_at: DateTime<Utc>,
 ) -> Result<(), sqlx::Error> {
-    let total_donated_sol = total_donated_lamports as f64 / 1_000_000_000.0;
-
     sqlx::query(
         r#"
         INSERT INTO user_donations (
@@ -359,7 +355,7 @@ pub async fn upsert_user_donation(
         "#,
     )
     .bind(user_pubkey)
-    .bind(total_donated_sol)
+    .bind(total_donated_lamports as i64)
     .bind(donation_count as i32)
     .bind(last_donation_at)
     .bind(updated_at)
@@ -411,23 +407,6 @@ pub async fn get_wishes(pool: &DbPool, limit: i32, offset: i32) -> Result<Vec<Wi
     )
     .bind(limit)
     .bind(offset)
-    .fetch_all(pool.as_ref())
-    .await
-}
-
-/// donation leaderboard
-pub async fn get_donation_leaderboard(
-    pool: &DbPool,
-    limit: i32,
-) -> Result<Vec<UserDonation>, sqlx::Error> {
-    sqlx::query_as::<_, UserDonation>(
-        r#"
-        SELECT * FROM user_donations
-        ORDER BY total_donated DESC
-        LIMIT ?
-        "#,
-    )
-    .bind(limit)
     .fetch_all(pool.as_ref())
     .await
 }
@@ -679,6 +658,69 @@ pub async fn sync_shop_items(
     Ok(())
 }
 
+/// get donation leaderboard data directly from user_donations table
+pub async fn get_donation_leaderboard(
+    pool: &DbPool,
+    limit: usize,
+    offset: usize,
+) -> Result<Vec<DonationLeaderboardEntry>, sqlx::Error> {
+    let query = r#"
+        SELECT
+            user_pubkey,
+            total_donated
+        FROM user_donations
+        ORDER BY total_donated DESC
+        LIMIT ? OFFSET ?
+        "#;
+
+    let donors = sqlx::query_as::<_, (String, i64)>(query)
+        .bind(limit as i32)
+        .bind(offset as i32)
+        .fetch_all(pool.as_ref())
+        .await?;
+
+    let entries: Vec<DonationLeaderboardEntry> = donors
+        .into_iter()
+        .enumerate()
+        .map(
+            |(index, (user_pubkey, total_donated_lamports))| DonationLeaderboardEntry {
+                rank: offset + index + 1,
+                user_pubkey,
+                total_donated: total_donated_lamports as f64 / 1_000_000_000.0, // Convert lamports to SOL
+            },
+        )
+        .collect();
+
+    Ok(entries)
+}
+
+/// check if user is in top 10000 donors
+pub async fn check_user_in_top_10000_donors(
+    pool: &DbPool,
+    user_pubkey: &str,
+) -> Result<bool, sqlx::Error> {
+    // Check if user is within top 10000 by finding their rank
+    let result = sqlx::query_scalar::<_, Option<i64>>(
+        r#"
+        SELECT COUNT(*) + 1
+        FROM user_donations
+        WHERE total_donated > (
+            SELECT total_donated
+            FROM user_donations
+            WHERE user_pubkey = ?
+        )
+        "#,
+    )
+    .bind(user_pubkey)
+    .fetch_one(pool.as_ref())
+    .await?;
+
+    match result {
+        Some(rank) => Ok(rank <= 10000),
+        None => Ok(false), // User not found
+    }
+}
+
 /// update incense leaderboard for all periods
 pub async fn update_incense_leaderboard_all_periods(
     pool: &DbPool,
@@ -711,8 +753,8 @@ pub async fn update_incense_leaderboard_by_period(
         r#"
         SELECT
             user_pubkey,
-            CAST(SUM(incense_points_gained) AS SIGNED) as total_incense_points,
-            CAST(COUNT(*) AS SIGNED) as burn_count
+            SUM(incense_points_gained) as total_incense_points,
+            COUNT(*) as burn_count
         FROM incense_burn_history
         WHERE {}
         GROUP BY user_pubkey
@@ -786,6 +828,14 @@ pub struct LeaderboardEntry {
     pub user_pubkey: String,
     pub total_incense_points: i64,
     pub burn_count: i64,
+}
+
+/// API response struct for donation leaderboard entries
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct DonationLeaderboardEntry {
+    pub rank: usize,
+    pub user_pubkey: String,
+    pub total_donated: f64,
 }
 
 /// get parsed leaderboard data by period

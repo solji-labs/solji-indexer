@@ -31,16 +31,6 @@ pub struct TempleConfig {
     pub created_at: DateTime<Utc>,
 }
 
-// DonationLeaderboard
-#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
-pub struct DonationLeaderboard {
-    pub id: i32,
-    pub program_id: String,
-    pub top_donors: String,
-    pub updated_at: DateTime<Utc>,
-    pub created_at: DateTime<Utc>,
-}
-
 // UserDonationState
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct UserDonation {

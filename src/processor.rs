@@ -253,6 +253,8 @@ async fn handle_donation_completed(
         }
     }
 
+    // No need to update donation leaderboard - we query directly from user_donations table
+
     Ok(())
 }
 
