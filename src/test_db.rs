@@ -1,4 +1,7 @@
-use crate::db::{create_pool, get_latest_global_stats, init_database, upsert_global_stats};
+use crate::db::{
+    create_pool, get_aggregated_global_stats, get_parsed_incense_leaderboard_by_period,
+    init_database, update_incense_leaderboard_all_periods,
+};
 use crate::utils::config::Config;
 
 #[tokio::test]
@@ -46,26 +49,10 @@ async fn test_global_stats_storage() {
     let total_wishes = 200u64;
     let updated_at = chrono::Utc::now();
 
-    // Store GlobalStats
-    upsert_global_stats(
-        &pool,
-        total_merit,
-        total_incense_points,
-        total_donations_lamports,
-        total_users,
-        total_wishes,
-        updated_at,
-    )
-    .await
-    .expect("Failed to upsert global stats");
-
-    println!("GlobalStats stored successfully");
-
-    // Query latest GlobalStats
-    let stats = get_latest_global_stats(&pool)
+    // Query aggregated global stats (from individual tables)
+    let stats = get_aggregated_global_stats(&pool)
         .await
-        .expect("Failed to get latest global stats")
-        .expect("No global stats found");
+        .expect("Failed to get aggregated global stats");
 
     // Verify data
     assert_eq!(stats.total_merit, total_merit as i64);
@@ -94,4 +81,46 @@ async fn test_global_stats_storage() {
     println!("   Total Wishes: {}", stats.total_wishes);
     println!("   Updated At: {}", stats.updated_at);
     println!("   Created At: {}", stats.created_at);
+}
+
+#[tokio::test]
+async fn test_incense_leaderboard() {
+    // Load config
+    let config = Config::from_env().expect("Failed to load config");
+
+    // Create database connection pool
+    let pool = create_pool(&config.database_url)
+        .await
+        .expect("Failed to create database pool");
+
+    // Update leaderboard for all periods
+    println!("Updating incense leaderboard...");
+    update_incense_leaderboard_all_periods(&pool, chrono::Utc::now())
+        .await
+        .expect("Failed to update leaderboard");
+
+    // Test getting leaderboard for different periods
+    let periods = vec!["all", "daily", "weekly", "monthly"];
+
+    for period in periods {
+        println!("\n=== {} Leaderboard ===", period.to_uppercase());
+        let leaderboard = get_parsed_incense_leaderboard_by_period(&pool, period)
+            .await
+            .expect("Failed to get leaderboard");
+
+        if leaderboard.is_empty() {
+            println!("No data for {} period", period);
+        } else {
+            println!("Found {} entries", leaderboard.len());
+            for entry in leaderboard.iter().take(5) {
+                // Show top 5
+                println!(
+                    "Rank {}: {} - {} points, {} burns",
+                    entry.rank, entry.user_pubkey, entry.total_incense_points, entry.burn_count
+                );
+            }
+        }
+    }
+
+    println!("\nIncense leaderboard test completed!");
 }

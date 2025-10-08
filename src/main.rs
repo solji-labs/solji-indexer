@@ -9,7 +9,7 @@ mod test_db;
 mod utils;
 
 use crate::api::{create_router, AppState};
-use crate::db::{create_pool, init_database};
+use crate::db::{create_pool, init_database, update_incense_leaderboard_all_periods};
 use crate::events::ProgramEvent;
 use crate::indexer::fetcher::IndexerFetcher;
 use crate::processor::start_event_processor;

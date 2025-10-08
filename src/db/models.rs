@@ -11,6 +11,11 @@ pub struct GlobalStats {
     pub total_donations_sol: f64,
     pub total_users: i32,
     pub total_wishes: i32,
+    pub total_donations: i32,
+    pub total_donation_amount: i64,
+    pub total_merit_distributed: i64,
+    pub total_incense_points_distributed: i64,
+    pub total_draw_fortune: i32,
     pub updated_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
 }
@@ -43,16 +48,16 @@ pub struct UserDonation {
     pub user_pubkey: String,
     pub total_donated: f64,
     pub donation_count: i32,
-    pub last_donation_at: Option<i64>,
+    pub last_donation_at: Option<DateTime<Utc>>,
     pub updated_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
 }
 
-// IncenseLeaderboard
+// IncenseLeaderboard (global leaderboard by period)
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct IncenseLeaderboard {
     pub id: i32,
-    pub incense_type: i32,
+    pub period_type: String, // 'all', 'daily', 'weekly', 'monthly'
     pub top_users: String,
     pub updated_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,

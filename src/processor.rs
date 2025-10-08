@@ -1,10 +1,12 @@
-use sqlx::MySql;
-use sqlx::Pool;
-use std::sync::Arc;
 use tokio::sync::mpsc::Receiver;
 
 use crate::db::DbPool;
 use crate::events::ProgramEvent;
+
+/// Get current time in CST (UTC+8)
+fn get_current_cst_time() -> chrono::DateTime<chrono::Utc> {
+    chrono::Utc::now() + chrono::Duration::hours(8)
+}
 
 /// Start event processor worker
 pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEvent>, pool: DbPool) {
@@ -215,15 +217,41 @@ async fn handle_donation_completed(
     // 1. Calculate rewards based on donation level
     let (merit_reward, incense_reward) = crate::rewards::calculate_donation_rewards(level);
 
-    // 2. Atomically update user state (incremental update)
-    crate::db::upsert_user_state_by_donation(pool, &user_str, merit_reward, incense_reward, amount)
-        .await?;
+    // 2. Update user donation record
+    let current_time = get_current_cst_time();
+    match crate::db::upsert_user_donation(
+        pool,
+        &user_str,
+        amount,
+        1, // donation_count
+        Some(current_time),
+        current_time,
+    )
+    .await
+    {
+        Ok(_) => println!("✅ Successfully updated user donation record"),
+        Err(e) => {
+            eprintln!("❌ Failed to update user donation record: {:?}", e);
+            return Err(e);
+        }
+    }
 
-    // 3. Atomically update global stats
-    crate::db::upsert_global_stats_by_donation(pool, merit_reward, incense_reward, amount).await?;
-
-    // 4. Insert donation history (if needed)
-    // Note: You might want to add a donation history table for detailed tracking
+    // 3. update user state
+    match crate::db::upsert_user_state_by_donation(
+        pool,
+        &user_str,
+        merit_reward,
+        incense_reward,
+        amount,
+    )
+    .await
+    {
+        Ok(_) => println!("✅ Successfully updated user state for donation"),
+        Err(e) => {
+            eprintln!("❌ Failed to update user state: {:?}", e);
+            return Err(e);
+        }
+    }
 
     Ok(())
 }
@@ -244,11 +272,16 @@ async fn handle_rewards_processed(
     let user_str = user.to_string();
 
     // 1. Atomically update user state with rewards
-    crate::db::upsert_user_state_by_rewards(pool, &user_str, merit_reward, incense_points_reward)
-        .await?;
+    crate::db::upsert_user_state_by_donation(
+        pool,
+        &user_str,
+        merit_reward,
+        incense_points_reward,
+        0,
+    )
+    .await?;
 
-    // 2. Atomically update global stats
-    crate::db::upsert_global_stats_by_rewards(pool, merit_reward, incense_points_reward).await?;
+    // 2. Global stats removed - data now aggregated from individual tables
 
     Ok(())
 }
@@ -288,8 +321,7 @@ async fn handle_fortune_drawn(
     );
 
     let user_str = user.to_string();
-    let created_at =
-        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+    let created_at = get_current_cst_time();
 
     // 1. Insert fortune draw history
     crate::db::insert_fortune_draw_history(
@@ -305,8 +337,7 @@ async fn handle_fortune_drawn(
     // 2. Update user state (increment fortune draws count)
     crate::db::increment_user_fortune_draws(&pool, &user_str, created_at).await?;
 
-    // 3. Update global stats
-    crate::db::increment_global_stats_fortune_draws(&pool, created_at).await?;
+    // 3. Global stats removed - data now aggregated from individual tables
 
     Ok(())
 }
@@ -327,8 +358,7 @@ async fn handle_wish_created(
     );
 
     let user_str = user.to_string();
-    let created_at =
-        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+    let created_at = get_current_cst_time();
 
     // Convert content_hash to hex string for storage
     let content_hash_hex = hex::encode(content_hash);
@@ -345,11 +375,9 @@ async fn handle_wish_created(
     )
     .await?;
 
-    // 2. Update user state (increment wish count)
-    crate::db::increment_user_wish_count(&pool, &user_str, created_at).await?;
+    // 2. Update user state (increment wish count) - removed since function was deleted
 
-    // 3. Update global stats
-    crate::db::increment_global_stats_wishes(&pool, created_at).await?;
+    // 3. Global stats removed - data now aggregated from individual tables
 
     Ok(())
 }
@@ -368,8 +396,7 @@ async fn handle_incense_burned(
     );
 
     let user_str = user.to_string();
-    let created_at =
-        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+    let created_at = get_current_cst_time();
 
     // // Check daily limit before processing
     // let can_burn =
@@ -403,6 +430,12 @@ async fn handle_incense_burned(
     )
     .await?;
 
+    // Update incense leaderboard for all periods
+    if let Err(err) = crate::db::update_incense_leaderboard_all_periods(&pool, created_at).await {
+        eprintln!("Failed to update incense leaderboard: {:?}", err);
+        // Don't fail the entire event processing for leaderboard update failure
+    }
+
     Ok(())
 }
 
@@ -416,8 +449,7 @@ async fn handle_amulet_dropped(
     println!("Processing AmuletDropped: user={}, source={}", user, source);
 
     let user_str = user.to_string();
-    let created_at =
-        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+    let created_at = get_current_cst_time();
 
     // 1. Insert amulet drop history
     crate::db::insert_amulet_drop_history(&pool, &user_str, &source, created_at).await?;
@@ -444,8 +476,7 @@ async fn handle_amulet_minted(
 
     let user_str = user.to_string();
     let amulet_mint_str = amulet_mint.to_string();
-    let created_at =
-        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+    let created_at = get_current_cst_time();
 
     // 1. Insert amulet mint history
     crate::db::insert_amulet_mint_history(
@@ -478,8 +509,7 @@ async fn handle_wish_tower_updated(
     );
 
     let user_str = user.to_string();
-    let updated_at =
-        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+    let updated_at = get_current_cst_time();
 
     // For now, we don't have a specific wish_tower table in the database
     // This event is mainly for tracking tower progress, but since the tower
@@ -511,8 +541,7 @@ async fn handle_shop_config_updated(
     let shop_config_str = shop_config.to_string();
     let temple_config_str = temple_config.to_string();
     let owner_str = owner.to_string();
-    let updated_at =
-        chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| chrono::Utc::now());
+    let updated_at = get_current_cst_time();
 
     // 1. Upsert shop config record
     crate::db::upsert_shop_config(

@@ -15,22 +15,6 @@ pub async fn create_pool(database_url: &str) -> Result<DbPool, sqlx::Error> {
 pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
     // Create tables one by one to avoid MySQL multi-statement issues
 
-    // Global Stats table
-    sqlx::query(
-        r#"CREATE TABLE IF NOT EXISTS global_stats (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            total_merit BIGINT NOT NULL,
-            total_incense_points BIGINT NOT NULL,
-            total_donations_sol DOUBLE NOT NULL,
-            total_users INT NOT NULL,
-            total_wishes INT NOT NULL,
-            updated_at DATETIME NOT NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )"#,
-    )
-    .execute(pool.as_ref())
-    .await?;
-
     // Temple Config table
     sqlx::query(
         r#"CREATE TABLE IF NOT EXISTS temple_config (
@@ -65,7 +49,7 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
             user_pubkey VARCHAR(44) NOT NULL,
             total_donated DOUBLE NOT NULL,
             donation_count INT NOT NULL,
-            last_donation_at BIGINT,
+            last_donation_at  DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY unique_user_pubkey (user_pubkey)
@@ -74,15 +58,15 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
     .execute(pool.as_ref())
     .await?;
 
-    // Incense Leaderboard table
+    // Incense Leaderboard table (global leaderboard, not per incense type)
     sqlx::query(
         r#"CREATE TABLE IF NOT EXISTS incense_leaderboard (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            incense_type INT NOT NULL,
+            period_type VARCHAR(20) NOT NULL DEFAULT 'all', -- 'all', 'daily', 'weekly', 'monthly'
             top_users TEXT NOT NULL,
             updated_at DATETIME NOT NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE KEY unique_incense_type (incense_type)
+            UNIQUE KEY unique_period_type (period_type)
         )"#,
     )
     .execute(pool.as_ref())
@@ -264,10 +248,6 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
     .await?;
 
     // Create indexes (ignore if already exists)
-    let _ = sqlx::query(r#"CREATE INDEX idx_global_stats_updated_at ON global_stats(updated_at)"#)
-        .execute(pool.as_ref())
-        .await;
-
     let _ = sqlx::query(
         r#"CREATE INDEX idx_user_donations_user_pubkey ON user_donations(user_pubkey)"#,
     )
@@ -289,48 +269,71 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
 
 use crate::db::models::*;
 
-/// upsert global stats
-pub async fn upsert_global_stats(
-    pool: &DbPool,
-    total_merit: u64,
-    total_incense_points: u64,
-    total_donations_lamports: u64,
-    total_users: u64,
-    total_wishes: u64,
-    updated_at: DateTime<Utc>,
-) -> Result<(), sqlx::Error> {
-    let total_donations_sol = total_donations_lamports as f64 / 1_000_000_000.0;
+/// Get aggregated global stats from all tables
+pub async fn get_aggregated_global_stats(pool: &DbPool) -> Result<GlobalStats, sqlx::Error> {
+    // Get total users from user_states table
+    let total_users_result = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM user_states")
+        .fetch_one(pool.as_ref())
+        .await?;
 
-    sqlx::query(
-        r#"
-        INSERT INTO global_stats (
-            total_merit, total_incense_points, total_donations_sol,
-            total_users, total_wishes, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
-        "#,
+    // Get total wishes from wishes table
+    let total_wishes_result = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM wishes")
+        .fetch_one(pool.as_ref())
+        .await?;
+
+    // Get total donations and donation amount from user_donations table
+    let donation_stats = sqlx::query_as::<_, (i64, i64)>(
+        "SELECT COALESCE(SUM(donation_count), 0), COALESCE(SUM(total_donated * 1000000000), 0) FROM user_donations"
     )
-    .bind(total_merit as i64)
-    .bind(total_incense_points as i64)
-    .bind(total_donations_sol)
-    .bind(total_users as i32)
-    .bind(total_wishes as i32)
-    .bind(updated_at)
-    .execute(pool.as_ref())
+    .fetch_one(pool.as_ref())
     .await?;
 
-    Ok(())
-}
-
-pub async fn get_latest_global_stats(pool: &DbPool) -> Result<Option<GlobalStats>, sqlx::Error> {
-    sqlx::query_as::<_, GlobalStats>(
-        r#"
-        SELECT * FROM global_stats
-        ORDER BY updated_at DESC
-        LIMIT 1
-        "#,
+    // Get total merit and incense points from user_states table
+    let user_stats = sqlx::query_as::<_, (i64, i64)>(
+        "SELECT COALESCE(SUM(merit), 0), COALESCE(SUM(incense_points), 0) FROM user_states",
     )
-    .fetch_optional(pool.as_ref())
-    .await
+    .fetch_one(pool.as_ref())
+    .await?;
+
+    // Get total merit and incense points distributed from incense_burn_history table
+    let distributed_stats = sqlx::query_as::<_, (i64, i64)>(
+        "SELECT COALESCE(SUM(merit_gained), 0), COALESCE(SUM(incense_points_gained), 0) FROM incense_burn_history"
+    )
+    .fetch_one(pool.as_ref())
+    .await?;
+
+    // Get total fortune draws from fortune_draw_history table
+    let total_draw_fortune_result =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM fortune_draw_history")
+            .fetch_one(pool.as_ref())
+            .await?;
+
+    // Get total donations SOL (convert from lamports to SOL)
+    let total_donations_sol = donation_stats.1 as f64 / 1_000_000_000.0;
+
+    // Get latest update time from any table
+    let latest_update = sqlx::query_scalar::<_, Option<chrono::DateTime<chrono::Utc>>>(
+        "SELECT updated_at FROM user_states ORDER BY updated_at DESC LIMIT 1",
+    )
+    .fetch_one(pool.as_ref())
+    .await?
+    .unwrap_or_else(|| chrono::Utc::now());
+
+    Ok(GlobalStats {
+        id: 0, // This won't be used since we're aggregating
+        total_merit: user_stats.0,
+        total_incense_points: user_stats.1,
+        total_donations_sol,
+        total_users: total_users_result as i32,
+        total_wishes: total_wishes_result as i32,
+        total_donations: donation_stats.0 as i32,
+        total_donation_amount: donation_stats.1,
+        total_merit_distributed: distributed_stats.0,
+        total_incense_points_distributed: distributed_stats.1,
+        total_draw_fortune: total_draw_fortune_result as i32,
+        updated_at: latest_update,
+        created_at: chrono::Utc::now(),
+    })
 }
 
 pub async fn upsert_user_donation(
@@ -338,7 +341,7 @@ pub async fn upsert_user_donation(
     user_pubkey: &str,
     total_donated_lamports: u64,
     donation_count: u32,
-    last_donation_at: Option<i64>,
+    last_donation_at: Option<DateTime<Utc>>,
     updated_at: DateTime<Utc>,
 ) -> Result<(), sqlx::Error> {
     let total_donated_sol = total_donated_lamports as f64 / 1_000_000_000.0;
@@ -489,87 +492,6 @@ pub async fn upsert_user_state_by_donation(
     .bind(merit_gained as i64)
     .bind(incense_points_gained as i64)
     .bind(donation_amount as i64)
-    .execute(pool.as_ref())
-    .await?;
-
-    Ok(())
-}
-
-/// Atomically update global stats by donation event
-pub async fn upsert_global_stats_by_donation(
-    pool: &DbPool,
-    merit_gained: u64,
-    incense_points_gained: u64,
-    donation_amount: u64,
-) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        r#"
-        INSERT INTO global_stats (
-            total_donations, total_donation_amount, total_merit_distributed, total_incense_points_distributed, updated_at, created_at
-        ) VALUES (1, ?, ?, ?, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE
-            total_donations = total_donations + 1,
-            total_donation_amount = total_donation_amount + VALUES(total_donation_amount),
-            total_merit_distributed = total_merit_distributed + VALUES(total_merit_distributed),
-            total_incense_points_distributed = total_incense_points_distributed + VALUES(total_incense_points_distributed),
-            updated_at = NOW()
-        "#,
-    )
-    .bind(donation_amount as i64)
-    .bind(merit_gained as i64)
-    .bind(incense_points_gained as i64)
-    .execute(pool.as_ref())
-    .await?;
-
-    Ok(())
-}
-
-/// Atomically update user state by rewards processed event
-pub async fn upsert_user_state_by_rewards(
-    pool: &DbPool,
-    user_pubkey: &str,
-    merit_reward: u64,
-    incense_points_reward: u64,
-) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        r#"
-        INSERT INTO user_states (
-            user_pubkey, merit, incense_points, total_donation_amount, total_wish_count, total_fortune_draws, updated_at, created_at
-        ) VALUES (?, ?, ?, 0, 0, 0, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE
-            merit = merit + VALUES(merit),
-            incense_points = incense_points + VALUES(incense_points),
-            updated_at = NOW()
-        "#,
-    )
-    .bind(user_pubkey)
-    .bind(merit_reward as i64)
-    .bind(incense_points_reward as i64)
-    .execute(pool.as_ref())
-    .await?;
-
-    Ok(())
-}
-
-/// Atomically update global stats by rewards processed event
-pub async fn upsert_global_stats_by_rewards(
-    pool: &DbPool,
-    merit_reward: u64,
-    incense_points_reward: u64,
-) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        r#"
-        INSERT INTO global_stats (
-            total_donations, total_donation_amount, total_merit_distributed, total_incense_points_distributed, updated_at, created_at
-        ) VALUES (0, 0, ?, ?, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE
-            total_merit_distributed = total_merit_distributed + VALUES(total_merit_distributed),
-            total_incense_points_distributed = total_incense_points_distributed + VALUES(total_incense_points_distributed),
-            updated_at = NOW()
-        "#,
-    )
-    .bind(merit_reward as i64)
-    .bind(incense_points_reward as i64)
     .execute(pool.as_ref())
     .await?;
 
@@ -757,6 +679,130 @@ pub async fn sync_shop_items(
     Ok(())
 }
 
+/// update incense leaderboard for all periods
+pub async fn update_incense_leaderboard_all_periods(
+    pool: &DbPool,
+    updated_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    let periods = vec!["all", "daily", "weekly", "monthly"];
+
+    for period in periods {
+        update_incense_leaderboard_by_period(pool, period, updated_at).await?;
+    }
+
+    Ok(())
+}
+
+/// update incense leaderboard for a specific period
+pub async fn update_incense_leaderboard_by_period(
+    pool: &DbPool,
+    period: &str,
+    updated_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    let date_condition = match period {
+        "daily" => "DATE(created_at) = CURDATE()",
+        "weekly" => "YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1)",
+        "monthly" => "DATE_FORMAT(created_at, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')",
+        _ => "1=1", // No filter for "all"
+    };
+
+    // Calculate top 100 users by total incense_points_gained and burn count
+    let query = format!(
+        r#"
+        SELECT
+            user_pubkey,
+            CAST(SUM(incense_points_gained) AS SIGNED) as total_incense_points,
+            CAST(COUNT(*) AS SIGNED) as burn_count
+        FROM incense_burn_history
+        WHERE {}
+        GROUP BY user_pubkey
+        ORDER BY total_incense_points DESC, burn_count DESC
+        LIMIT 100
+        "#,
+        date_condition
+    );
+
+    let top_users = sqlx::query_as::<_, (String, i64, i64)>(&query)
+        .fetch_all(pool.as_ref())
+        .await?;
+
+    // Convert to JSON format
+    let leaderboard_data: Vec<serde_json::Value> = top_users
+        .into_iter()
+        .enumerate()
+        .map(|(rank, (user_pubkey, total_incense_points, burn_count))| {
+            serde_json::json!({
+                "rank": rank + 1,
+                "user_pubkey": user_pubkey,
+                "total_incense_points": total_incense_points,
+                "burn_count": burn_count
+            })
+        })
+        .collect();
+
+    let top_users_json = serde_json::to_string(&leaderboard_data)
+        .map_err(|e| sqlx::Error::Protocol(format!("JSON serialization error: {}", e)))?;
+
+    // Update or insert leaderboard
+    sqlx::query(
+        r#"
+        INSERT INTO incense_leaderboard (
+            period_type, top_users, updated_at
+        ) VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            top_users = VALUES(top_users),
+            updated_at = VALUES(updated_at)
+        "#,
+    )
+    .bind(period)
+    .bind(top_users_json)
+    .bind(updated_at)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// get incense leaderboard by period
+pub async fn get_incense_leaderboard_by_period(
+    pool: &DbPool,
+    period: &str,
+) -> Result<Option<IncenseLeaderboard>, sqlx::Error> {
+    sqlx::query_as::<_, IncenseLeaderboard>(
+        r#"
+        SELECT * FROM incense_leaderboard
+        WHERE period_type = ?
+        "#,
+    )
+    .bind(period)
+    .fetch_optional(pool.as_ref())
+    .await
+}
+
+/// API response struct for leaderboard entries
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct LeaderboardEntry {
+    pub rank: usize,
+    pub user_pubkey: String,
+    pub total_incense_points: i64,
+    pub burn_count: i64,
+}
+
+/// get parsed leaderboard data by period
+pub async fn get_parsed_incense_leaderboard_by_period(
+    pool: &DbPool,
+    period: &str,
+) -> Result<Vec<LeaderboardEntry>, sqlx::Error> {
+    if let Some(leaderboard) = get_incense_leaderboard_by_period(pool, period).await? {
+        match serde_json::from_str(&leaderboard.top_users) {
+            Ok(entries) => Ok(entries),
+            Err(_) => Ok(vec![]), // Return empty vec on parse error
+        }
+    } else {
+        Ok(vec![])
+    }
+}
+
 /// insert amulet drop history
 pub async fn insert_amulet_drop_history(
     pool: &DbPool,
@@ -912,74 +958,6 @@ pub async fn increment_user_fortune_draws(
     Ok(())
 }
 
-/// increment global stats fortune draws
-pub async fn increment_global_stats_fortune_draws(
-    pool: &DbPool,
-    updated_at: DateTime<Utc>,
-) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        r#"
-        INSERT INTO global_stats (
-            total_draw_fortune, updated_at, created_at
-        ) VALUES (1, ?, NOW())
-        ON DUPLICATE KEY UPDATE
-            total_draw_fortune = total_draw_fortune + 1,
-            updated_at = VALUES(updated_at)
-        "#,
-    )
-    .bind(updated_at)
-    .execute(pool.as_ref())
-    .await?;
-
-    Ok(())
-}
-
-/// increment user wish count
-pub async fn increment_user_wish_count(
-    pool: &DbPool,
-    user_pubkey: &str,
-    updated_at: DateTime<Utc>,
-) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        r#"
-        INSERT INTO user_states (
-            user_pubkey, total_wish_count, updated_at, created_at
-        ) VALUES (?, 1, ?, NOW())
-        ON DUPLICATE KEY UPDATE
-            total_wish_count = total_wish_count + 1,
-            updated_at = VALUES(updated_at)
-        "#,
-    )
-    .bind(user_pubkey)
-    .bind(updated_at)
-    .execute(pool.as_ref())
-    .await?;
-
-    Ok(())
-}
-
-/// increment global stats wishes
-pub async fn increment_global_stats_wishes(
-    pool: &DbPool,
-    updated_at: DateTime<Utc>,
-) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        r#"
-        INSERT INTO global_stats (
-            total_wishes, updated_at, created_at
-        ) VALUES (1, ?, NOW())
-        ON DUPLICATE KEY UPDATE
-            total_wishes = total_wishes + 1,
-            updated_at = VALUES(updated_at)
-        "#,
-    )
-    .bind(updated_at)
-    .execute(pool.as_ref())
-    .await?;
-
-    Ok(())
-}
-
 /// check if user can burn incense (daily limit check)
 pub async fn check_daily_incense_limit(
     pool: &DbPool,
@@ -1099,24 +1077,6 @@ pub async fn update_user_incense_and_history(
         "#,
     )
     .bind(user_pubkey)
-    .bind(merit_gained)
-    .bind(incense_points_gained)
-    .bind(updated_at)
-    .execute(&mut *tx)
-    .await?;
-
-    // 4. Update global stats
-    sqlx::query(
-        r#"
-        INSERT INTO global_stats (
-            total_merit, total_incense_points, total_donations_sol, total_users, total_wishes, updated_at, created_at
-        ) VALUES (?, ?, 0.0, 0, 0, ?, NOW())
-        ON DUPLICATE KEY UPDATE
-            total_merit = total_merit + VALUES(total_merit),
-            total_incense_points = total_incense_points + VALUES(total_incense_points),
-            updated_at = VALUES(updated_at)
-        "#,
-    )
     .bind(merit_gained)
     .bind(incense_points_gained)
     .bind(updated_at)
