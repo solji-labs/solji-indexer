@@ -6,8 +6,9 @@ use tokio::sync::RwLock;
 use crate::db::{
     check_daily_incense_limit, check_user_in_top_10000_donors, get_aggregated_global_stats,
     get_donation_leaderboard as get_donation_leaderboard_db,
-    get_parsed_incense_leaderboard_by_period, get_wishes, update_incense_leaderboard_all_periods,
-    DbPool,
+    get_parsed_incense_leaderboard_by_period, get_public_wishes, get_user_daily_wish_count,
+    get_user_wish_tower_stats, get_user_wishes, get_wishes, like_wish_by_id,
+    update_incense_leaderboard_all_periods, DbPool,
 };
 use crate::indexer::fetcher::IndexerFetcher;
 use crate::utils::config::Config;
@@ -25,6 +26,20 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/stats", get(get_global_stats))
         .route("/api/incense/can-burn", get(check_can_burn_incense))
         .route("/api/wishes", get(get_wishes_paginated))
+        .route("/api/wishes/public", get(get_public_wishes_api))
+        .route("/api/wishes/user/{user_pubkey}", get(get_user_wishes_api))
+        .route(
+            "/api/wishes/user/{user_pubkey}/count",
+            get(get_user_daily_wish_count_api),
+        )
+        .route(
+            "/api/wish-tower/{user_pubkey}",
+            get(get_user_wish_tower_api),
+        )
+        .route(
+            "/api/wishes/{wish_id}/like",
+            axum::routing::post(like_wish_api),
+        )
         .route("/api/incense/leaderboard", get(get_incense_leaderboard))
         .route(
             "/api/donation/leaderboard",
@@ -284,6 +299,166 @@ async fn update_leaderboard_admin(
                 "error": format!("Failed to update leaderboard: {:?}", e)
             });
             Ok(Json(response))
+        }
+    }
+}
+
+// ===== WISH-RELATED API ENDPOINTS =====
+
+async fn get_public_wishes_api(
+    State(state): State<AppState>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Extract query parameters with defaults
+    let limit_str = params.get("limit").map(|s| s.as_str()).unwrap_or("20");
+    let offset_str = params.get("offset").map(|s| s.as_str()).unwrap_or("0");
+
+    let limit: i32 = limit_str.parse().unwrap_or(20).min(100); // Max 100 per page
+    let offset: i32 = offset_str.parse().unwrap_or(0).max(0);
+
+    // Get public wishes from database
+    match get_public_wishes(&state.db_pool, limit, offset).await {
+        Ok(wishes) => {
+            let wishes_data: Vec<serde_json::Value> = wishes
+                .into_iter()
+                .map(|wish| {
+                    json!({
+                        "id": wish.id,
+                        "wish_id": wish.wish_id,
+                        "user_pubkey": wish.user_pubkey,
+                        "content": wish.content,
+                        "likes": wish.likes,
+                        "created_at": wish.created_at.to_rfc3339(),
+                        "updated_at": wish.updated_at.to_rfc3339()
+                    })
+                })
+                .collect();
+
+            let response = json!({
+                "wishes": wishes_data,
+                "pagination": {
+                    "limit": limit,
+                    "offset": offset,
+                    "count": wishes_data.len()
+                }
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting public wishes: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn get_user_wishes_api(
+    State(state): State<AppState>,
+    axum::extract::Path(user_pubkey): axum::extract::Path<String>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Extract query parameters with defaults
+    let limit_str = params.get("limit").map(|s| s.as_str()).unwrap_or("20");
+    let offset_str = params.get("offset").map(|s| s.as_str()).unwrap_or("0");
+
+    let limit: i32 = limit_str.parse().unwrap_or(20).min(100); // Max 100 per page
+    let offset: i32 = offset_str.parse().unwrap_or(0).max(0);
+
+    // Get user's wishes from database
+    match get_user_wishes(&state.db_pool, &user_pubkey, limit, offset).await {
+        Ok(wishes) => {
+            let wishes_data: Vec<serde_json::Value> = wishes
+                .into_iter()
+                .map(|wish| {
+                    json!({
+                        "id": wish.id,
+                        "wish_id": wish.wish_id,
+                        "user_pubkey": wish.user_pubkey,
+                        "content": wish.content,
+                        "likes": wish.likes,
+                        "created_at": wish.created_at.to_rfc3339(),
+                        "updated_at": wish.updated_at.to_rfc3339()
+                    })
+                })
+                .collect();
+
+            let response = json!({
+                "user_pubkey": user_pubkey,
+                "wishes": wishes_data,
+                "pagination": {
+                    "limit": limit,
+                    "offset": offset,
+                    "count": wishes_data.len()
+                }
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting user wishes: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn get_user_daily_wish_count_api(
+    State(state): State<AppState>,
+    axum::extract::Path(user_pubkey): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Get user's daily wish count
+    match get_user_daily_wish_count(&state.db_pool, &user_pubkey).await {
+        Ok(count) => {
+            let response = json!({
+                "user_pubkey": user_pubkey,
+                "daily_wish_count": count,
+                "max_daily_limit": 3
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting user daily wish count: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn get_user_wish_tower_api(
+    State(state): State<AppState>,
+    axum::extract::Path(user_pubkey): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Get user's wish tower stats
+    match get_user_wish_tower_stats(&state.db_pool, &user_pubkey).await {
+        Ok(tower_stats) => {
+            let response = json!({
+                "user_pubkey": tower_stats.user_pubkey,
+                "total_wishes": tower_stats.total_wishes,
+                "level": tower_stats.level,
+                "last_updated": tower_stats.last_updated.map(|dt| dt.to_rfc3339())
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting user wish tower: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn like_wish_api(
+    State(state): State<AppState>,
+    axum::extract::Path(wish_id): axum::extract::Path<i64>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Like the wish and get updated count
+    match like_wish_by_id(&state.db_pool, wish_id).await {
+        Ok(new_likes_count) => {
+            let response = json!({
+                "wish_id": wish_id,
+                "likes": new_likes_count,
+                "success": true
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error liking wish: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
 }

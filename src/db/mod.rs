@@ -1138,3 +1138,157 @@ pub async fn update_user_incense_and_history(
 
     Ok(())
 }
+
+// ===== WISH-RELATED DATABASE FUNCTIONS =====
+
+/// Get user's wishes
+pub async fn get_user_wishes(
+    pool: &DbPool,
+    user_pubkey: &str,
+    limit: i32,
+    offset: i32,
+) -> Result<Vec<Wish>, sqlx::Error> {
+    sqlx::query_as::<_, Wish>(
+        r#"
+        SELECT * FROM wishes
+        WHERE user_pubkey = ?
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool.as_ref())
+    .await
+}
+
+/// Get user's daily wish count (today)
+pub async fn get_user_daily_wish_count(
+    pool: &DbPool,
+    user_pubkey: &str,
+) -> Result<i32, sqlx::Error> {
+    let today = chrono::Utc::now().date_naive();
+
+    let result = sqlx::query_scalar::<_, i32>(
+        r#"
+        SELECT COUNT(*) FROM wishes
+        WHERE user_pubkey = ? AND DATE(created_at) = ?
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(today)
+    .fetch_one(pool.as_ref())
+    .await?;
+
+    Ok(result)
+}
+
+/// Get user's wish tower stats (calculate level based on new requirements)
+pub async fn get_user_wish_tower_stats(
+    pool: &DbPool,
+    user_pubkey: &str,
+) -> Result<WishTowerStats, sqlx::Error> {
+    // Get total wish count for user
+    let total_wishes =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM wishes WHERE user_pubkey = ?")
+            .bind(user_pubkey)
+            .fetch_one(pool.as_ref())
+            .await?;
+
+    // Calculate level based on new requirements:
+    // Level 0: 0 wishes (铸造获得)
+    // Level 1: 10 wishes
+    // Level 2: 50 wishes
+    // Level 3: 200 wishes
+    // Level 4: 500 wishes
+    let level = if total_wishes >= 500 {
+        4 // 圆满塔
+    } else if total_wishes >= 200 {
+        3 // 宏愿塔
+    } else if total_wishes >= 50 {
+        2 // 精进塔
+    } else if total_wishes >= 10 {
+        1 // 基础塔
+    } else {
+        0 // 种子塔
+    };
+
+    // Get latest wish time as last_updated
+    let last_updated = sqlx::query_scalar::<_, DateTime<Utc>>(
+        "SELECT created_at FROM wishes WHERE user_pubkey = ? ORDER BY created_at DESC LIMIT 1",
+    )
+    .bind(user_pubkey)
+    .fetch_optional(pool.as_ref())
+    .await?;
+
+    Ok(WishTowerStats {
+        user_pubkey: user_pubkey.to_string(),
+        total_wishes: total_wishes as i32,
+        level: level as i32,
+        last_updated,
+    })
+}
+
+/// Like a wish (increment likes count)
+pub async fn like_wish_by_id(pool: &DbPool, wish_id: i64) -> Result<i32, sqlx::Error> {
+    // Update likes count and return new count
+    let result = sqlx::query_scalar::<_, i32>(
+        r#"
+        UPDATE wishes
+        SET likes = likes + 1, updated_at = NOW()
+        WHERE wish_id = ?
+        "#,
+    )
+    .bind(wish_id)
+    .fetch_one(pool.as_ref())
+    .await?;
+
+    Ok(result)
+}
+
+/// Get public wishes (non-anonymous) with pagination
+pub async fn get_public_wishes(
+    pool: &DbPool,
+    limit: i32,
+    offset: i32,
+) -> Result<Vec<Wish>, sqlx::Error> {
+    // Note: Current schema doesn't have is_anonymous field
+    // For now, return all wishes (assuming all are public)
+    // TODO: Add is_anonymous field to wishes table when available
+    sqlx::query_as::<_, Wish>(
+        r#"
+        SELECT * FROM wishes
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+        "#,
+    )
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool.as_ref())
+    .await
+}
+
+/// Get wish by ID
+pub async fn get_wish_by_id(pool: &DbPool, wish_id: i64) -> Result<Option<Wish>, sqlx::Error> {
+    sqlx::query_as::<_, Wish>(
+        r#"
+        SELECT * FROM wishes
+        WHERE wish_id = ?
+        "#,
+    )
+    .bind(wish_id)
+    .fetch_optional(pool.as_ref())
+    .await
+}
+
+// ===== RESPONSE STRUCTS =====
+
+/// Wish tower stats response
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct WishTowerStats {
+    pub user_pubkey: String,
+    pub total_wishes: i32,
+    pub level: i32,
+    pub last_updated: Option<DateTime<Utc>>,
+}
