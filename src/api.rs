@@ -1,4 +1,5 @@
 use axum::{extract::State, http::StatusCode, response::Json, routing::get, Router};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -7,6 +8,7 @@ use crate::db::{
     check_daily_incense_limit, check_user_in_top_10000_donors, get_aggregated_global_stats,
     get_donation_leaderboard as get_donation_leaderboard_db,
     get_parsed_incense_leaderboard_by_period, get_public_wishes, get_user_daily_wish_count,
+    get_user_incense_burn_count, get_user_incense_burn_history, get_user_incense_nfts,
     get_user_wish_tower_stats, get_user_wishes, get_wishes, like_wish_by_id,
     update_incense_leaderboard_all_periods, DbPool,
 };
@@ -25,6 +27,19 @@ pub fn create_router(state: AppState) -> Router {
         .route("/health", get(health_check))
         .route("/api/stats", get(get_global_stats))
         .route("/api/incense/can-burn", get(check_can_burn_incense))
+        .route("/api/incense/types", get(get_incense_types))
+        .route(
+            "/api/incense/user/{user_pubkey}/burn-count",
+            get(get_user_incense_burn_count_api),
+        )
+        .route(
+            "/api/incense/user/{user_pubkey}/nfts",
+            get(get_user_incense_nfts_api),
+        )
+        .route(
+            "/api/incense/user/{user_pubkey}/history",
+            get(get_user_incense_burn_history_api),
+        )
         .route("/api/wishes", get(get_wishes_paginated))
         .route("/api/wishes/public", get(get_public_wishes_api))
         .route("/api/wishes/user/{user_pubkey}", get(get_user_wishes_api))
@@ -458,6 +473,155 @@ async fn like_wish_api(
         }
         Err(e) => {
             eprintln!("Database error liking wish: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// ===== INCENSE-RELATED API ENDPOINTS =====
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IncenseTypeInfo {
+    pub id: String,
+    pub name: String,
+    pub name_en: String,
+    pub price: f64,
+    pub merit_points: i32,
+    pub description: String,
+    pub image: String,
+    pub daily_limit: i32,
+}
+
+async fn get_incense_types() -> Result<Json<serde_json::Value>, StatusCode> {
+    // Return hardcoded incense types based on frontend constants
+    let incense_types = vec![
+        IncenseTypeInfo {
+            id: "basic".to_string(),
+            name: "清香".to_string(),
+            name_en: "Basic Incense".to_string(),
+            price: 0.01,
+            merit_points: 1,
+            description: "Simple and pure, for daily devotion".to_string(),
+            image: "/traditional-incense-stick-glowing.jpg".to_string(),
+            daily_limit: 10,
+        },
+        IncenseTypeInfo {
+            id: "sandalwood".to_string(),
+            name: "檀香".to_string(),
+            name_en: "Sandalwood".to_string(),
+            price: 0.05,
+            merit_points: 5,
+            description: "Premium sandalwood for deeper meditation".to_string(),
+            image: "/sandalwood-incense-with-golden-glow.jpg".to_string(),
+            daily_limit: 10,
+        },
+        IncenseTypeInfo {
+            id: "dragon".to_string(),
+            name: "龙香".to_string(),
+            name_en: "Dragon Incense".to_string(),
+            price: 0.1,
+            merit_points: 10,
+            description: "Rare dragon incense for great fortune".to_string(),
+            image: "/mystical-dragon-incense-with-purple-smoke.jpg".to_string(),
+            daily_limit: 10,
+        },
+        IncenseTypeInfo {
+            id: "supreme".to_string(),
+            name: "至尊香".to_string(),
+            name_en: "Supreme Incense".to_string(),
+            price: 0.3,
+            merit_points: 30,
+            description: "The ultimate offering for enlightenment".to_string(),
+            image: "/supreme-golden-incense-with-rainbow-aura.jpg".to_string(),
+            daily_limit: 10,
+        },
+    ];
+
+    let response = json!({
+        "incense_types": incense_types
+    });
+    Ok(Json(response))
+}
+
+async fn get_user_incense_burn_count_api(
+    State(state): State<AppState>,
+    axum::extract::Path(user_pubkey): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Get user's daily burn count for all incense types
+    match get_user_incense_burn_count(&state.db_pool, &user_pubkey).await {
+        Ok(burn_counts) => {
+            let response = json!({
+                "user_pubkey": user_pubkey,
+                "burn_counts": burn_counts,
+                "max_daily_limit": 10
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting user incense burn count: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn get_user_incense_nfts_api(
+    State(state): State<AppState>,
+    axum::extract::Path(user_pubkey): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Get user's incense NFTs
+    match get_user_incense_nfts(&state.db_pool, &user_pubkey).await {
+        Ok(nfts) => {
+            let response = json!({
+                "user_pubkey": user_pubkey,
+                "nfts": nfts
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting user incense NFTs: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn get_user_incense_burn_history_api(
+    State(state): State<AppState>,
+    axum::extract::Path(user_pubkey): axum::extract::Path<String>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Extract query parameters with defaults
+    let limit_str = params.get("limit").map(|s| s.as_str()).unwrap_or("20");
+
+    let limit: i32 = limit_str.parse().unwrap_or(20).min(100); // Max 100 per page
+
+    // Get user's incense burn history
+    match get_user_incense_burn_history(&state.db_pool, &user_pubkey, limit).await {
+        Ok(history) => {
+            let history_data: Vec<serde_json::Value> = history
+                .into_iter()
+                .map(|record| {
+                    json!({
+                        "id": record.id,
+                        "user_pubkey": record.user_pubkey,
+                        "incense_type": record.incense_type,
+                        "incense_amount": record.incense_amount,
+                        "merit_gained": record.merit_gained,
+                        "incense_points_gained": record.incense_points_gained,
+                        "transaction_signature": record.transaction_signature,
+                        "created_at": record.created_at.to_rfc3339()
+                    })
+                })
+                .collect();
+
+            let response = json!({
+                "user_pubkey": user_pubkey,
+                "history": history_data,
+                "count": history_data.len()
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting user incense burn history: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

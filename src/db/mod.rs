@@ -1282,6 +1282,35 @@ pub async fn get_wish_by_id(pool: &DbPool, wish_id: i64) -> Result<Option<Wish>,
     .await
 }
 
+// ===== INCENSE-RELATED DATABASE FUNCTIONS =====
+
+/// Get user's daily incense burn count for all incense types
+pub async fn get_user_incense_burn_count(
+    pool: &DbPool,
+    user_pubkey: &str,
+) -> Result<Vec<DailyIncenseBurnCount>, sqlx::Error> {
+    sqlx::query_as::<_, DailyIncenseBurnCount>(
+        r#"
+        SELECT * FROM daily_incense_burn_count
+        WHERE user_pubkey = ? AND date = CURDATE()
+        ORDER BY incense_type
+        "#,
+    )
+    .bind(user_pubkey)
+    .fetch_all(pool.as_ref())
+    .await
+}
+
+/// Get user's incense NFTs (placeholder - NFT ownership tracked via ATA)
+pub async fn get_user_incense_nfts(
+    pool: &DbPool,
+    _user_pubkey: &str,
+) -> Result<Vec<serde_json::Value>, sqlx::Error> {
+    // For now, return empty array as NFT ownership is checked via ATA
+    // TODO: Implement proper NFT tracking if needed
+    Ok(vec![])
+}
+
 // ===== RESPONSE STRUCTS =====
 
 /// Wish tower stats response
