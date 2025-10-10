@@ -43,6 +43,31 @@ pub struct UserDonation {
     pub created_at: DateTime<Utc>,
 }
 
+// DonationHistory
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct DonationHistory {
+    pub id: i32,
+    pub user_pubkey: String,
+    pub amount: f64, // in SOL (converted from lamports)
+    pub tier: String,
+    pub merit_gained: i32,
+    pub transaction_signature: String,
+    pub created_at: DateTime<Utc>,
+}
+
+// UserDonationBadge
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct UserDonationBadge {
+    pub id: i32,
+    pub user_pubkey: String,
+    pub tier: String,
+    pub badge_name: String,
+    pub earned_at: DateTime<Utc>,
+    pub total_donated: f64,
+    pub nft_mint: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
 // IncenseLeaderboard (global leaderboard by period)
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct IncenseLeaderboard {

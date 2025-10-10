@@ -46,6 +46,42 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
     .execute(pool.as_ref())
     .await?;
 
+    // Donation History table
+    sqlx::query(
+        r#"CREATE TABLE IF NOT EXISTS donation_history (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_pubkey VARCHAR(44) NOT NULL,
+            amount DECIMAL(20,10) NOT NULL,
+            tier VARCHAR(20) NOT NULL,
+            merit_gained INT NOT NULL,
+            transaction_signature VARCHAR(88) NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_pubkey (user_pubkey),
+            INDEX idx_created_at (created_at)
+        )"#,
+    )
+    .execute(pool.as_ref())
+    .await?;
+
+    // User Donation Badges table
+    sqlx::query(
+        r#"CREATE TABLE IF NOT EXISTS user_donation_badges (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_pubkey VARCHAR(44) NOT NULL,
+            tier VARCHAR(20) NOT NULL,
+            badge_name VARCHAR(100) NOT NULL,
+            earned_at DATETIME NOT NULL,
+            total_donated DECIMAL(20,10) NOT NULL,
+            nft_mint VARCHAR(44),
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_pubkey (user_pubkey),
+            INDEX idx_tier (tier),
+            UNIQUE KEY unique_user_tier (user_pubkey, tier)
+        )"#,
+    )
+    .execute(pool.as_ref())
+    .await?;
+
     // Incense Leaderboard table (global leaderboard, not per incense type)
     sqlx::query(
         r#"CREATE TABLE IF NOT EXISTS incense_leaderboard (
@@ -1320,4 +1356,206 @@ pub struct WishTowerStats {
     pub total_wishes: i32,
     pub level: i32,
     pub last_updated: Option<DateTime<Utc>>,
+}
+
+// ===== DONATION-RELATED DATABASE FUNCTIONS =====
+
+/// Insert donation history record
+pub async fn insert_donation_history(
+    pool: &DbPool,
+    user_pubkey: &str,
+    amount_sol: f64,
+    tier: &str,
+    merit_gained: i32,
+    transaction_signature: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO donation_history (
+            user_pubkey, amount, tier, merit_gained, transaction_signature
+        ) VALUES (?, ?, ?, ?, ?)
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(amount_sol)
+    .bind(tier)
+    .bind(merit_gained)
+    .bind(transaction_signature)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// Get user's donation history
+pub async fn get_user_donation_history(
+    pool: &DbPool,
+    user_pubkey: &str,
+    limit: i32,
+) -> Result<Vec<DonationHistory>, sqlx::Error> {
+    sqlx::query_as::<_, DonationHistory>(
+        r#"
+        SELECT * FROM donation_history
+        WHERE user_pubkey = ?
+        ORDER BY created_at DESC
+        LIMIT ?
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(limit)
+    .fetch_all(pool.as_ref())
+    .await
+}
+
+/// Upsert user donation badge
+pub async fn upsert_user_donation_badge(
+    pool: &DbPool,
+    user_pubkey: &str,
+    tier: &str,
+    badge_name: &str,
+    total_donated: f64,
+    nft_mint: Option<&str>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO user_donation_badges (
+            user_pubkey, tier, badge_name, earned_at, total_donated, nft_mint
+        ) VALUES (?, ?, ?, NOW(), ?, ?)
+        ON DUPLICATE KEY UPDATE
+            badge_name = VALUES(badge_name),
+            total_donated = VALUES(total_donated),
+            nft_mint = VALUES(nft_mint)
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(tier)
+    .bind(badge_name)
+    .bind(total_donated)
+    .bind(nft_mint)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// Get user's donation badges
+pub async fn get_user_donation_badges(
+    pool: &DbPool,
+    user_pubkey: &str,
+) -> Result<Vec<UserDonationBadge>, sqlx::Error> {
+    sqlx::query_as::<_, UserDonationBadge>(
+        r#"
+        SELECT * FROM user_donation_badges
+        WHERE user_pubkey = ?
+        ORDER BY earned_at DESC
+        "#,
+    )
+    .bind(user_pubkey)
+    .fetch_all(pool.as_ref())
+    .await
+}
+
+/// Process donation transaction (insert history and update badges)
+pub async fn process_donation_transaction(
+    pool: &DbPool,
+    user_pubkey: &str,
+    amount_sol: f64,
+    tier: &str,
+    merit_gained: i32,
+    transaction_signature: &str,
+) -> Result<(), sqlx::Error> {
+    // Start transaction
+    let mut tx = pool.begin().await?;
+
+    // 1. Insert donation history
+    sqlx::query(
+        r#"
+        INSERT INTO donation_history (
+            user_pubkey, amount, tier, merit_gained, transaction_signature
+        ) VALUES (?, ?, ?, ?, ?)
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(amount_sol)
+    .bind(tier)
+    .bind(merit_gained)
+    .bind(transaction_signature)
+    .execute(&mut *tx)
+    .await?;
+
+    // 2. Update user donation stats
+    let total_donated_lamports = (amount_sol * 1_000_000_000.0) as i64;
+    sqlx::query(
+        r#"
+        INSERT INTO user_donations (
+            user_pubkey, total_donated, donation_count, last_donation_at, updated_at
+        ) VALUES (?, ?, 1, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+            total_donated = total_donated + VALUES(total_donated),
+            donation_count = donation_count + 1,
+            last_donation_at = NOW(),
+            updated_at = NOW()
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(total_donated_lamports)
+    .execute(&mut *tx)
+    .await?;
+
+    // 3. Update or insert donation badge
+    let badge_name = match tier {
+        "bronze" => "Bronze Merit Badge",
+        "silver" => "Silver Progress Badge",
+        "gold" => "Gold Guardian Badge",
+        "supreme" => "Supreme Dragon Badge",
+        _ => "Unknown Badge",
+    };
+
+    // Get current total donated for this user
+    let current_total: Option<f64> = sqlx::query_scalar(
+        "SELECT total_donated / 1000000000.0 FROM user_donations WHERE user_pubkey = ?",
+    )
+    .bind(user_pubkey)
+    .fetch_optional(&mut *tx)
+    .await?;
+
+    if let Some(total_donated) = current_total {
+        sqlx::query(
+            r#"
+            INSERT INTO user_donation_badges (
+                user_pubkey, tier, badge_name, earned_at, total_donated
+            ) VALUES (?, ?, ?, NOW(), ?)
+            ON DUPLICATE KEY UPDATE
+                badge_name = VALUES(badge_name),
+                total_donated = VALUES(total_donated)
+            "#,
+        )
+        .bind(user_pubkey)
+        .bind(tier)
+        .bind(badge_name)
+        .bind(total_donated)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    // 4. Update user state with merit points
+    sqlx::query(
+        r#"
+        INSERT INTO user_states (
+            user_pubkey, merit, updated_at, created_at
+        ) VALUES (?, ?, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+            merit = merit + VALUES(merit),
+            updated_at = NOW()
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(merit_gained as i64)
+    .execute(&mut *tx)
+    .await?;
+
+    // Commit transaction
+    tx.commit().await?;
+
+    Ok(())
 }
