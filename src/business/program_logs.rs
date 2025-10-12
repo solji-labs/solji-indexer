@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sqlx::{MySql, Pool, Type};
+use sqlx::{MySql, Pool};
 use std::time::Duration;
 use tokio::time::sleep;
 use tokio_stream::StreamExt;

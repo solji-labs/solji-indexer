@@ -13,11 +13,7 @@ use crate::{
     utils::PageResp,
 };
 use anyhow::{Context, Ok, Result};
-use sqlx::{
-    mysql::{MySqlConnectOptions, MySqlPoolOptions},
-    types::Json,
-    MySql, MySqlPool, Pool, QueryBuilder,
-};
+use sqlx::{mysql::MySqlPoolOptions, types::Json, MySql, MySqlPool, Pool, QueryBuilder};
 
 pub async fn connect_db() -> Result<MySqlPool> {
     let url = std::env::var("DATABASE_URL").context("DATABASE_URL is not set")?;
