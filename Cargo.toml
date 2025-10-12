@@ -1,46 +1,33 @@
-# solji-indexer/Cargo.toml
-
 [package]
-name = "solji-indexer"
+name = "sol_ji_service"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# Async Runtime
 tokio = { version = "1", features = ["full"] }
-# Solana
-solana-client = "3.0.5"
-solana-sdk = "3.0.0"
-anchor-lang = { version = "0.31.1", features = ["derive"] }
-# WebSocket for real-time event listening
-tokio-tungstenite = "0.21"
-futures-util = "0.3"
-
-# programs
-temple = { path = "../solji-program/anchor/programs/temple", features = [
-    "idl-build",
-] }
-
-# serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-# base64 for event parsing
+anyhow = "1"
 base64 = "0.22"
-# hex encoding
-hex = "0.4"
-# environment
+borsh = "1"
+sha2 = "0.10"
+solana-sdk = "2.1"
+solana-client = "2.1"
+solana-transaction-status = "2.1"
+solana-account-decoder = "2.1"
+tokio-stream = "0.1"
 dotenvy = "0.15"
-# database
-sqlx = { version = "0.8.6", features = [
-    "runtime-tokio",
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.7", features = [
     "mysql",
+    "runtime-tokio-rustls",
     "macros",
-    "time",
     "chrono",
+    "json",
 ] }
-# chrono 
 chrono = { version = "0.4", features = ["serde"] }
-# Decimal
-rust_decimal = { version = "1.0", features = ["serde"] }
-# API
-axum = "0.8.6"
+
+# SQLx（MySQL 驱动 + Tokio 运行时 + rustls TLS）
+# Actix Web
+actix-web = "4"
+# CORS
+actix-cors = "0.7"
