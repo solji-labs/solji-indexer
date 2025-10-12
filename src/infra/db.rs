@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Duration};
+use std::time::Duration;
 
 use crate::{
     domain::{
@@ -337,6 +337,7 @@ pub async fn write_user_info_to_db(
             merit_value,
             incense_time,
             donate_amount,
+            donate_count,
             donate_merit_value,
             donate_incense_value,
             current_medal_level,
@@ -354,7 +355,7 @@ pub async fn write_user_info_to_db(
         )
         VALUES (
             ?, ?, ?, ?, ?,?, ?, FROM_UNIXTIME(?),
-            ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?),
+            ?,?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?),
             ?, FROM_UNIXTIME(?), ?,?, ?,?, NOW(), NOW()
         )
         ON DUPLICATE KEY UPDATE
@@ -366,6 +367,7 @@ pub async fn write_user_info_to_db(
             merit_value              = ?,
             incense_time             = FROM_UNIXTIME(?),
             donate_amount            = ?,
+            donate_count             = ?,
             donate_merit_value       = ?,
             donate_incense_value     = ?,
             current_medal_level      = ?,
@@ -391,6 +393,7 @@ pub async fn write_user_info_to_db(
     .bind(evt.merit_value)
     .bind(evt.incense_time)
     .bind(evt.donate_amount)
+    .bind(evt.donate_count)
     .bind(evt.donate_merit_value)
     .bind(evt.donate_incense_value)
     .bind(medel_level)
@@ -412,6 +415,7 @@ pub async fn write_user_info_to_db(
     .bind(evt.merit_value)
     .bind(evt.incense_time)
     .bind(evt.donate_amount)
+    .bind(evt.donate_count)
     .bind(evt.donate_merit_value)
     .bind(evt.donate_incense_value)
     .bind(medel_level)
@@ -441,6 +445,7 @@ pub async fn write_temple_to_db(pool: &Pool<MySql>, evt: Temple) -> Result<()> {
             total_lottery_count,
             total_wish_count,
             total_donate_amount,
+            total_donate_count,
             total_amulet_count,
             buddha_nft_count,
             wealth,
@@ -448,7 +453,7 @@ pub async fn write_temple_to_db(pool: &Pool<MySql>, evt: Temple) -> Result<()> {
             update_time
         )
         VALUES (
-            ?, ?,?, ?,?, ?, ?,?,?,?,?, NOW(), NOW()
+            ?, ?,?, ?,?, ?,?, ?,?,?,?,?, NOW(), NOW()
         )
         ON DUPLICATE KEY UPDATE
             admin                 = ?,
@@ -459,6 +464,7 @@ pub async fn write_temple_to_db(pool: &Pool<MySql>, evt: Temple) -> Result<()> {
             total_lottery_count   = ?,
             total_wish_count      = ?,
             total_donate_amount   = ?,
+            total_donate_count   = ?,
             total_amulet_count    = ?,
             buddha_nft_count      = ?,
             wealth                = ?,
@@ -474,6 +480,7 @@ pub async fn write_temple_to_db(pool: &Pool<MySql>, evt: Temple) -> Result<()> {
     .bind(evt.total_lottery_count)
     .bind(evt.total_wish_count)
     .bind(evt.total_donate_amount)
+    .bind(evt.total_donate_count)
     .bind(evt.total_amulet_count)
     .bind(evt.buddha_nft_count)
     .bind(evt.wealth)
@@ -486,6 +493,7 @@ pub async fn write_temple_to_db(pool: &Pool<MySql>, evt: Temple) -> Result<()> {
     .bind(evt.total_lottery_count)
     .bind(evt.total_wish_count)
     .bind(evt.total_donate_amount)
+    .bind(evt.total_donate_count)
     .bind(evt.total_amulet_count)
     .bind(evt.buddha_nft_count)
     .bind(evt.wealth)
@@ -672,7 +680,8 @@ pub async fn query_interactions_count(
             (total_burn_count
            + total_lottery_count
            + total_wish_count
-           + total_donate_amount) AS UNSIGNED
+           + total_donate_count
+           ) AS UNSIGNED
         )
         FROM temple
         WHERE admin = ? AND is_deleted = 0

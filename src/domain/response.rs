@@ -23,6 +23,7 @@ pub struct TempleResp {
     pub total_lottery_count: u64,
     pub total_wish_count: u64,
     pub total_donate_amount: u64,
+    pub total_donate_count: u64,
     pub total_amulet_count: u64,
     pub buddha_nft_count: u64,
     pub wealth: u64,
@@ -45,6 +46,7 @@ pub struct UserInfoResp {
     #[serde(serialize_with = "ndt_opt_as_str")]
     pub incense_time: Option<NaiveDateTime>,
     pub donate_amount: u64,
+    pub donate_count: u64,
     pub donate_merit_value: u64,
     pub donate_incense_value: u64,
     pub current_medal_level: u8,
