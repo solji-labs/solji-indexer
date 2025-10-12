@@ -72,7 +72,8 @@ pub enum ProgramEvent {
     },
     AmuletDropped {
         user: Pubkey,
-        source: String, // "fortune" or "wish"
+        amulet_type: u8, // 0: Fortune, 1: Protection, 2: Merit
+        source: String,  // "burn_incense", "draw_fortune", "create_wish", "purchase"
         timestamp: i64,
     },
     AmuletMinted {

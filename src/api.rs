@@ -83,6 +83,14 @@ pub fn create_router(state: AppState) -> Router {
             "/api/admin/update-leaderboard",
             get(update_leaderboard_admin),
         )
+        .route(
+            "/api/amulet/user/{user_pubkey}/pending",
+            get(get_user_pending_amulets),
+        )
+        .route(
+            "/api/amulet/user/{user_pubkey}/recent-drop",
+            get(get_user_recent_amulet_drop),
+        )
         .with_state(state)
 }
 
@@ -869,4 +877,78 @@ async fn submit_donation_transaction_api(
         "transaction_signature": request.transaction_signature
     });
     Ok(Json(response))
+}
+
+// ===== AMULET API ENDPOINTS =====
+
+async fn get_user_pending_amulets(
+    State(state): State<AppState>,
+    axum::extract::Path(user_pubkey): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Get user's pending amulets from database
+    match crate::db::get_user_pending_amulets(&state.db_pool, &user_pubkey).await {
+        Ok(pending_amulets) => {
+            let amulets_data: Vec<serde_json::Value> = pending_amulets
+                .into_iter()
+                .map(|amulet| {
+                    json!({
+                        "id": amulet.id,
+                        "user_pubkey": amulet.user_pubkey,
+                        "amulet_type": amulet.amulet_type,
+                        "source": amulet.source,
+                        "created_at": amulet.created_at.to_rfc3339()
+                    })
+                })
+                .collect();
+
+            let response = json!({
+                "user_pubkey": user_pubkey,
+                "pending_amulets": amulets_data,
+                "count": amulets_data.len()
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting user pending amulets: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn get_user_recent_amulet_drop(
+    State(state): State<AppState>,
+    axum::extract::Path(user_pubkey): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Get user's most recent amulet drop from database
+    match crate::db::get_user_pending_amulets(&state.db_pool, &user_pubkey).await {
+        Ok(pending_amulets) => {
+            // Get the most recent amulet drop (first in the list since ordered by created_at DESC)
+            let recent_drop = pending_amulets.into_iter().next();
+
+            let response = if let Some(amulet) = recent_drop {
+                json!({
+                    "user_pubkey": user_pubkey,
+                    "has_recent_drop": true,
+                    "recent_drop": {
+                        "id": amulet.id,
+                        "amulet_type": amulet.amulet_type,
+                        "source": amulet.source,
+                        "created_at": amulet.created_at.to_rfc3339(),
+                        "time_since_drop_seconds": (chrono::Utc::now() - amulet.created_at).num_seconds()
+                    }
+                })
+            } else {
+                json!({
+                    "user_pubkey": user_pubkey,
+                    "has_recent_drop": false,
+                    "recent_drop": null
+                })
+            };
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting user recent amulet drop: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }

@@ -148,10 +148,13 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
             }
             ProgramEvent::AmuletDropped {
                 user,
+                amulet_type,
                 source,
                 timestamp,
             } => {
-                if let Err(err) = handle_amulet_dropped(&pool, user, source, timestamp).await {
+                if let Err(err) =
+                    handle_amulet_dropped(&pool, user, amulet_type, source, timestamp).await
+                {
                     eprintln!("Worker #{}: Failed to handle AmuletDropped: {:?}", id, err);
                 }
             }
@@ -445,19 +448,29 @@ async fn handle_incense_burned(
 async fn handle_amulet_dropped(
     pool: &DbPool,
     user: solana_sdk::pubkey::Pubkey,
+    amulet_type: u8,
     source: String,
     timestamp: i64,
 ) -> Result<(), sqlx::Error> {
-    println!("Processing AmuletDropped: user={}, source={}", user, source);
+    println!(
+        "Processing AmuletDropped: user={}, amulet_type={}, source={}",
+        user, amulet_type, source
+    );
 
     let user_str = user.to_string();
     let created_at = get_current_cst_time();
 
-    // 1. Insert amulet drop history
-    crate::db::insert_amulet_drop_history(&pool, &user_str, &source, created_at).await?;
+    // 1. Insert amulet drop history with type information
+    crate::db::insert_amulet_drop_history_with_type(
+        &pool,
+        &user_str,
+        amulet_type,
+        &source,
+        created_at,
+    )
+    .await?;
 
-    // 2. Update user amulet collection stats
-    crate::db::increment_user_amulet_stats(&pool, &user_str, &source, created_at).await?;
+    // 2. No need to update user amulet collection stats - removed table
 
     Ok(())
 }
@@ -491,8 +504,7 @@ async fn handle_amulet_minted(
     )
     .await?;
 
-    // 2. Update user amulet collection stats (decrement pending, increment total)
-    crate::db::decrement_user_pending_amulets(&pool, &user_str, created_at).await?;
+    // 2. No need to update user amulet collection stats - removed table
 
     Ok(())
 }

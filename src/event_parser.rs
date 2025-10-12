@@ -152,6 +152,7 @@ fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
         if let Ok(event) = AmuletDropped::try_from_slice(&decoded_bytes[8..]) {
             Some(ProgramEvent::AmuletDropped {
                 user: Pubkey::new_from_array(event.user.to_bytes()),
+                amulet_type: event.amulet_type,
                 source: event.source,
                 timestamp: event.timestamp,
             })

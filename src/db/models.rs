@@ -167,6 +167,16 @@ pub struct ShopConfig {
     pub updated_at: DateTime<Utc>,
 }
 
+// AmuletDropHistory
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct AmuletDropHistory {
+    pub id: i32,
+    pub user_pubkey: String,
+    pub amulet_type: i32,
+    pub source: String,
+    pub created_at: DateTime<Utc>,
+}
+
 // API response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlobalStatsResponse {
