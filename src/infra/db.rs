@@ -509,17 +509,7 @@ pub async fn get_temple_by_admin(
     sqlx::query_as::<_, TempleResp>(
         r#"
         SELECT
-            admin,
-            level,
-            total_incense_value,
-            total_merit_value,
-            total_lottery_count,
-            total_wish_count,
-            total_donate_amount,
-            total_amulet_count,
-            buddha_nft_count,
-            create_time,
-            update_time
+            *
         FROM temple
         WHERE admin = ? and is_deleted = 0
         LIMIT 1
@@ -537,26 +527,7 @@ pub async fn get_user_info_by_pubkey(
     sqlx::query_as::<_, UserInfoResp>(
         r#"
         SELECT
-          pubkey,
-          burn_count,
-          incense_property_count,
-          incense_value,
-          merit_value,
-          incense_time,
-          donate_amount,
-          donate_merit_value,
-          donate_incense_value,
-          current_medal_level,
-          lottery_count,
-          lottery_is_free,
-          lottery_time,
-          wish_count,
-          wish_update_time,
-          wish_daily_count,
-          amulet_count,
-          has_sbt_token,
-          create_time,
-          update_time
+         *
         FROM user_info
         WHERE pubkey = ? AND is_deleted = 0
         LIMIT 1
