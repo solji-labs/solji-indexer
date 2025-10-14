@@ -1,14 +1,12 @@
 /// Calculate rewards for donation based on level
 pub fn calculate_donation_rewards(level: u8) -> (u64, u64) {
-    // Simple reward calculation based on donation level
-    // This should match your program's reward logic
+    // Match the exact rewards from product documentation
     match level {
-        1 => (10, 5), // merit, incense_points
-        2 => (25, 12),
-        3 => (50, 25),
-        4 => (100, 50),
-        5 => (200, 100),
-        _ => (0, 0), // Invalid level
+        1 => (65, 1200),
+        2 => (1300, 6300),
+        3 => (14000, 30000),
+        4 => (120000, 100000),
+        _ => (0, 0),
     }
 }
 

@@ -201,7 +201,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
     println!("Worker #{} finished.", id);
 }
 
-/// Handle DonationCompleted event
+/// Handle DonationCompleted event (now includes all rewards processing)
 async fn handle_donation_completed(
     pool: &DbPool,
     user: solana_sdk::pubkey::Pubkey,
@@ -216,11 +216,7 @@ async fn handle_donation_completed(
     );
 
     let user_str = user.to_string();
-
-    // 1. Calculate rewards based on donation level
-    let (merit_reward, incense_reward) = crate::rewards::calculate_donation_rewards(level);
-
-    // 2. Update user donation record
+    // 1. Update user donation record
     let current_time = get_current_cst_time();
     match crate::db::upsert_user_donation(
         pool,
@@ -239,24 +235,7 @@ async fn handle_donation_completed(
         }
     }
 
-    // 3. update user state
-    match crate::db::upsert_user_state_by_donation(
-        pool,
-        &user_str,
-        merit_reward,
-        incense_reward,
-        amount,
-    )
-    .await
-    {
-        Ok(_) => println!("✅ Successfully updated user state for donation"),
-        Err(e) => {
-            eprintln!("❌ Failed to update user state: {:?}", e);
-            return Err(e);
-        }
-    }
-
-    // No need to update donation leaderboard - we query directly from user_donations table
+    // All rewards handled in contract transaction
 
     Ok(())
 }
@@ -276,7 +255,6 @@ async fn handle_rewards_processed(
 
     let user_str = user.to_string();
 
-    // 1. Atomically update user state with rewards
     crate::db::upsert_user_state_by_donation(
         pool,
         &user_str,
@@ -285,8 +263,6 @@ async fn handle_rewards_processed(
         0,
     )
     .await?;
-
-    // 2. Global stats removed - data now aggregated from individual tables
 
     Ok(())
 }
