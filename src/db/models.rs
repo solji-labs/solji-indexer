@@ -127,6 +127,18 @@ pub struct FortuneDrawHistory {
     pub created_at: DateTime<Utc>,
 }
 
+// FortuneNftMintHistory
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct FortuneNftMintHistory {
+    pub id: i32,
+    pub user_pubkey: String,
+    pub fortune_nft_mint: String,
+    pub fortune_result: String,
+    pub merit_cost: i32,
+    pub serial_number: i32,
+    pub created_at: DateTime<Utc>,
+}
+
 // DailyIncenseBurnCount
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct DailyIncenseBurnCount {

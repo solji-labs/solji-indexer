@@ -257,6 +257,25 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
     .execute(pool.as_ref())
     .await?;
 
+    // Fortune NFT Mint History table
+    sqlx::query(
+        r#"CREATE TABLE IF NOT EXISTS fortune_nft_mint_history (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_pubkey VARCHAR(44) NOT NULL,
+            fortune_nft_mint VARCHAR(44) NOT NULL,
+            fortune_result VARCHAR(20) NOT NULL, -- 'Great Luck', 'Good Luck', etc.
+            merit_cost INT NOT NULL DEFAULT 0,
+            serial_number INT NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_pubkey (user_pubkey),
+            INDEX idx_fortune_nft_mint (fortune_nft_mint),
+            INDEX idx_fortune_result (fortune_result),
+            INDEX idx_created_at (created_at)
+        )"#,
+    )
+    .execute(pool.as_ref())
+    .await?;
+
     // Create indexes (ignore if already exists)
     let _ = sqlx::query(
         r#"CREATE INDEX idx_user_donations_user_pubkey ON user_donations(user_pubkey)"#,
@@ -278,6 +297,15 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
 // ===== data handler =====
 
 use crate::db::models::*;
+
+/// Get total fortune NFTs count from fortune NFT mint history
+async fn get_total_fortune_nfts(pool: &DbPool) -> Result<i32, sqlx::Error> {
+    // Count total fortune NFTs minted from fortune_nft_mint_history table
+    let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM fortune_nft_mint_history")
+        .fetch_one(pool.as_ref())
+        .await?;
+    Ok(count as i32)
+}
 
 /// Get aggregated global stats from all tables
 pub async fn get_aggregated_global_stats(pool: &DbPool) -> Result<GlobalStats, sqlx::Error> {
@@ -351,7 +379,7 @@ pub async fn get_aggregated_global_stats(pool: &DbPool) -> Result<GlobalStats, s
         total_merit_distributed: distributed_stats.0,
         total_incense_points_distributed: distributed_stats.1,
         total_draw_fortune: total_draw_fortune_result as i32,
-        total_fortune_nfts: 0, // TODO: Implement fortune NFT counting
+        total_fortune_nfts: get_total_fortune_nfts(pool).await.unwrap_or(0),
         updated_at: latest_update,
         created_at: chrono::Utc::now(),
     })
@@ -551,6 +579,35 @@ pub async fn insert_fortune_draw_history(
     .bind(merit_cost)
     .bind(is_free)
     .bind(transaction_signature)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// insert fortune NFT mint history
+pub async fn insert_fortune_nft_mint_history(
+    pool: &DbPool,
+    user_pubkey: &str,
+    fortune_nft_mint: &str,
+    fortune_result: &str,
+    merit_cost: i32,
+    serial_number: i32,
+    created_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO fortune_nft_mint_history (
+            user_pubkey, fortune_nft_mint, fortune_result, merit_cost, serial_number, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(fortune_nft_mint)
+    .bind(fortune_result)
+    .bind(merit_cost)
+    .bind(serial_number)
+    .bind(created_at)
     .execute(pool.as_ref())
     .await?;
 

@@ -96,4 +96,12 @@ pub enum ProgramEvent {
         shop_items: Vec<ShopItem>,
         timestamp: i64,
     },
+    FortuneNFTMinted {
+        user: Pubkey,
+        fortune_nft_mint: Pubkey,
+        fortune_result: String,
+        merit_cost: u32,
+        serial_number: u32,
+        timestamp: i64,
+    },
 }

@@ -1,5 +1,6 @@
 use tokio::sync::mpsc::Receiver;
 
+use crate::db::insert_fortune_nft_mint_history;
 use crate::db::DbPool;
 use crate::events::ProgramEvent;
 
@@ -191,6 +192,31 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                 {
                     eprintln!(
                         "Worker #{}: Failed to handle ShopConfigUpdated: {:?}",
+                        id, err
+                    );
+                }
+            }
+            ProgramEvent::FortuneNFTMinted {
+                user,
+                fortune_nft_mint,
+                fortune_result,
+                merit_cost,
+                serial_number,
+                timestamp,
+            } => {
+                if let Err(err) = handle_fortune_nft_minted(
+                    &pool,
+                    user,
+                    fortune_nft_mint,
+                    fortune_result,
+                    merit_cost,
+                    serial_number,
+                    timestamp,
+                )
+                .await
+                {
+                    eprintln!(
+                        "Worker #{}: Failed to handle FortuneNFTMinted: {:?}",
                         id, err
                     );
                 }
@@ -545,6 +571,40 @@ async fn handle_shop_config_updated(
 
     // 2. Sync shop items (delete existing and insert new ones)
     crate::db::sync_shop_items(pool, &shop_config_str, &shop_items, updated_at).await?;
+
+    Ok(())
+}
+
+/// Handle FortuneNFTMinted event
+async fn handle_fortune_nft_minted(
+    pool: &DbPool,
+    user: solana_sdk::pubkey::Pubkey,
+    fortune_nft_mint: solana_sdk::pubkey::Pubkey,
+    fortune_result: String,
+    merit_cost: u32,
+    serial_number: u32,
+    timestamp: i64,
+) -> Result<(), sqlx::Error> {
+    println!(
+        "Processing FortuneNFTMinted: user={}, fortune_nft_mint={}, fortune_result={}, merit_cost={}, serial_number={}",
+        user, fortune_nft_mint, fortune_result, merit_cost, serial_number
+    );
+
+    let user_str = user.to_string();
+    let fortune_nft_mint_str = fortune_nft_mint.to_string();
+    let created_at = get_current_cst_time();
+
+    // 1. Insert fortune NFT mint history
+    insert_fortune_nft_mint_history(
+        &pool,
+        &user_str,
+        &fortune_nft_mint_str,
+        &fortune_result,
+        merit_cost as i32,
+        serial_number as i32,
+        created_at,
+    )
+    .await?;
 
     Ok(())
 }
