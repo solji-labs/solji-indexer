@@ -351,6 +351,7 @@ pub async fn get_aggregated_global_stats(pool: &DbPool) -> Result<GlobalStats, s
         total_merit_distributed: distributed_stats.0,
         total_incense_points_distributed: distributed_stats.1,
         total_draw_fortune: total_draw_fortune_result as i32,
+        total_fortune_nfts: 0, // TODO: Implement fortune NFT counting
         updated_at: latest_update,
         created_at: chrono::Utc::now(),
     })

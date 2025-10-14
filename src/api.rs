@@ -27,6 +27,8 @@ pub fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_check))
         .route("/api/stats", get(get_global_stats))
+        .route("/api/temple/level", get(get_temple_level))
+        .route("/api/temple/stats", get(get_temple_stats))
         .route("/api/incense/can-burn", get(check_can_burn_incense))
         .route("/api/incense/types", get(get_incense_types))
         .route(
@@ -954,6 +956,197 @@ async fn get_user_recent_amulet_drop(
             eprintln!("Database error getting user recent amulet drop: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
+    }
+}
+
+// ===== TEMPLE LEVEL API ENDPOINTS =====
+
+async fn get_temple_level(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Get aggregated global stats
+    match get_aggregated_global_stats(&state.db_pool).await {
+        Ok(stats) => {
+            // Calculate temple level based on product requirements
+            let level = calculate_temple_level(&stats);
+            let next_level_requirements = get_next_level_requirements(level);
+
+            let response = json!({
+                "current_level": level,
+                "level_name": get_temple_level_name(level),
+                "level_name_en": get_temple_level_name_en(level),
+                "stats": {
+                    "total_incense_points": stats.total_incense_points,
+                    "total_draw_fortune": stats.total_draw_fortune,
+                    "total_wishes": stats.total_wishes,
+                    "total_donations_sol": stats.total_donations_sol,
+                    "total_fortune_nfts": stats.total_fortune_nfts
+                },
+                "next_level_requirements": next_level_requirements,
+                "progress_percentage": calculate_level_progress(&stats, level),
+                "updated_at": stats.updated_at.timestamp()
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting temple level: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn get_temple_stats(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Get aggregated global stats
+    match get_aggregated_global_stats(&state.db_pool).await {
+        Ok(stats) => {
+            let level = calculate_temple_level(&stats);
+
+            let response = json!({
+                "level": level,
+                "level_name": get_temple_level_name(level),
+                "level_name_en": get_temple_level_name_en(level),
+                "total_incense_value": stats.total_incense_points,
+                "total_donations": stats.total_donations_sol,
+                "total_believers": stats.total_users,
+                "total_fortunes": stats.total_draw_fortune,
+                "total_wishes": stats.total_wishes,
+                "total_interactions": stats.total_draw_fortune + stats.total_wishes,
+                "updated_at": stats.updated_at.timestamp()
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting temple stats: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// ===== HELPER FUNCTIONS =====
+
+/// Calculate temple level based on global stats and product requirements
+fn calculate_temple_level(stats: &crate::db::models::GlobalStats) -> u8 {
+    // Temple level requirements from product documentation
+    let requirements = vec![
+        // Level 1: 草庙 (Rustic Shrine)
+        (1, 0, 0, 0, 0.0, 0),
+        // Level 2: 赤庙 (Vibrant Shrine)
+        (2, 10000, 5000, 3000, 100.0, 0),
+        // Level 3: 灵殿 (Temple of Spirit)
+        (3, 500000, 30000, 10000, 1000.0, 0),
+        // Level 4: 赛博神殿 (Cyber Shrine)
+        (4, 1000000, 100000, 50000, 5000.0, 0),
+    ];
+
+    for (level, req_incense, req_fortune, req_wishes, req_donations, req_nfts) in
+        requirements.into_iter().rev()
+    {
+        if stats.total_incense_points >= req_incense as i64
+            && stats.total_draw_fortune >= req_fortune as i32
+            && stats.total_wishes >= req_wishes as i32
+            && stats.total_donations_sol >= req_donations
+            && stats.total_fortune_nfts >= req_nfts as i32
+        {
+            return level;
+        }
+    }
+
+    1 // Default to level 1
+}
+
+/// Get next level requirements
+fn get_next_level_requirements(current_level: u8) -> serde_json::Value {
+    let requirements = match current_level {
+        1 => json!({
+            "level": 2,
+            "level_name": "赤庙",
+            "level_name_en": "Vibrant Shrine",
+            "requirements": {
+                "incense_points": 10000,
+                "draw_fortune": 5000,
+                "wishes": 3000,
+                "donations_sol": 100.0,
+                "fortune_nfts": 0
+            }
+        }),
+        2 => json!({
+            "level": 3,
+            "level_name": "灵殿",
+            "level_name_en": "Temple of Spirit",
+            "requirements": {
+                "incense_points": 500000,
+                "draw_fortune": 30000,
+                "wishes": 10000,
+                "donations_sol": 1000.0,
+                "fortune_nfts": 0
+            }
+        }),
+        3 => json!({
+            "level": 4,
+            "level_name": "赛博神殿",
+            "level_name_en": "Cyber Shrine",
+            "requirements": {
+                "incense_points": 1000000,
+                "draw_fortune": 100000,
+                "wishes": 50000,
+                "donations_sol": 5000.0,
+                "fortune_nfts": 0
+            }
+        }),
+        _ => json!({
+            "level": null,
+            "message": "Maximum level reached"
+        }),
+    };
+
+    requirements
+}
+
+/// Calculate level progress percentage
+fn calculate_level_progress(stats: &crate::db::models::GlobalStats, current_level: u8) -> f64 {
+    if current_level >= 4 {
+        return 100.0;
+    }
+
+    let next_requirements = match current_level {
+        1 => (10000, 5000, 3000, 100.0),
+        2 => (500000, 30000, 10000, 1000.0),
+        3 => (1000000, 100000, 50000, 5000.0),
+        _ => return 100.0,
+    };
+
+    let (req_incense, req_fortune, req_wishes, req_donations) = next_requirements;
+
+    let incense_progress = (stats.total_incense_points as f64 / req_incense as f64).min(1.0);
+    let fortune_progress = (stats.total_draw_fortune as f64 / req_fortune as f64).min(1.0);
+    let wishes_progress = (stats.total_wishes as f64 / req_wishes as f64).min(1.0);
+    let donations_progress = (stats.total_donations_sol / req_donations).min(1.0);
+
+    // Average of all progress metrics
+    (incense_progress + fortune_progress + wishes_progress + donations_progress) / 4.0 * 100.0
+}
+
+/// Get temple level name in Chinese
+fn get_temple_level_name(level: u8) -> &'static str {
+    match level {
+        1 => "草庙",
+        2 => "赤庙",
+        3 => "灵殿",
+        4 => "赛博神殿",
+        _ => "未知",
+    }
+}
+
+/// Get temple level name in English
+fn get_temple_level_name_en(level: u8) -> &'static str {
+    match level {
+        1 => "Rustic Shrine",
+        2 => "Vibrant Shrine",
+        3 => "Temple of Spirit",
+        4 => "Cyber Shrine",
+        _ => "Unknown",
     }
 }
 

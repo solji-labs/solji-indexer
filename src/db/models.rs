@@ -16,6 +16,7 @@ pub struct GlobalStats {
     pub total_merit_distributed: i64,
     pub total_incense_points_distributed: i64,
     pub total_draw_fortune: i32,
+    pub total_fortune_nfts: i32,
     pub updated_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
 }
@@ -174,6 +175,17 @@ pub struct AmuletDropHistory {
     pub user_pubkey: String,
     pub amulet_type: i32,
     pub source: String,
+    pub created_at: DateTime<Utc>,
+}
+
+// AmuletMintHistory
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct AmuletMintHistory {
+    pub id: i32,
+    pub user_pubkey: String,
+    pub amulet_mint: String,
+    pub source: String,
+    pub serial_number: i32,
     pub created_at: DateTime<Utc>,
 }
 
