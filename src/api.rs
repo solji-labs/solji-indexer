@@ -91,6 +91,10 @@ pub fn create_router(state: AppState) -> Router {
             "/api/amulet/user/{user_pubkey}/recent-drop",
             get(get_user_recent_amulet_drop),
         )
+        .route(
+            "/api/amulet/user/{user_pubkey}/owned",
+            get(get_user_owned_amulets),
+        )
         .with_state(state)
 }
 
@@ -948,6 +952,41 @@ async fn get_user_recent_amulet_drop(
         }
         Err(e) => {
             eprintln!("Database error getting user recent amulet drop: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn get_user_owned_amulets(
+    State(state): State<AppState>,
+    axum::extract::Path(user_pubkey): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Get user's owned amulets from amulet_mint_history table
+    match crate::db::get_user_owned_amulets(&state.db_pool, &user_pubkey).await {
+        Ok(owned_amulets) => {
+            let amulets_data: Vec<serde_json::Value> = owned_amulets
+                .into_iter()
+                .map(|amulet| {
+                    json!({
+                        "id": amulet.id,
+                        "user_pubkey": amulet.user_pubkey,
+                        "amulet_mint": amulet.amulet_mint,
+                        "source": amulet.source,
+                        "serial_number": amulet.serial_number,
+                        "created_at": amulet.created_at.to_rfc3339()
+                    })
+                })
+                .collect();
+
+            let response = json!({
+                "user_pubkey": user_pubkey,
+                "owned_amulets": amulets_data,
+                "count": amulets_data.len()
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting user owned amulets: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

@@ -940,6 +940,23 @@ pub async fn get_user_pending_amulets(
     .await
 }
 
+/// get user owned amulets
+pub async fn get_user_owned_amulets(
+    pool: &DbPool,
+    user_pubkey: &str,
+) -> Result<Vec<AmuletMintHistory>, sqlx::Error> {
+    sqlx::query_as::<_, AmuletMintHistory>(
+        r#"
+        SELECT * FROM amulet_mint_history
+        WHERE user_pubkey = ?
+        ORDER BY created_at DESC
+        "#,
+    )
+    .bind(user_pubkey)
+    .fetch_all(pool.as_ref())
+    .await
+}
+
 // Removed increment_user_amulet_stats function - table no longer exists
 
 /// insert amulet mint history
