@@ -329,6 +329,7 @@ pub async fn write_user_info_to_db(
         r#"
         INSERT INTO user_info (
             pubkey,
+            level,
             burn_count,
             total_burn_count,
             incense_buy_count,
@@ -350,15 +351,17 @@ pub async fn write_user_info_to_db(
             amulet_count,
             has_sbt_token,
             has_burn_token,
+            stake_count,
             create_time,
             update_time
         )
         VALUES (
-            ?, ?, ?, ?, ?,?, ?, FROM_UNIXTIME(?),
+            ?, ?,?, ?, ?, ?,?, ?, FROM_UNIXTIME(?),
             ?,?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?),
-            ?, FROM_UNIXTIME(?), ?,?, ?,?, NOW(), NOW()
+            ?, FROM_UNIXTIME(?), ?,?, ?,?, ?,NOW(), NOW()
         )
         ON DUPLICATE KEY UPDATE
+            level                    = ?,
             burn_count               = ?,
             total_burn_count         = ?,
             incense_buy_count        = ?,
@@ -380,11 +383,13 @@ pub async fn write_user_info_to_db(
             amulet_count             = ?,
             has_sbt_token            = ?,
             has_burn_token           = ?,
+            stake_count              = ?,
             update_time              = NOW()
         "#,
     )
     // INSERT 部分
     .bind(evt.user.to_string())
+    .bind(evt.level)
     .bind(Json(evt.burn_count))
     .bind(evt.total_burn_count)
     .bind(Json(evt.incense_buy_count))
@@ -406,7 +411,9 @@ pub async fn write_user_info_to_db(
     .bind(evt.amulet_count)
     .bind(evt.has_sbt_token)
     .bind(Json(evt.has_burn_token))
+    .bind(evt.stake_count)
     // UPDATE 部分（再绑定一遍）
+    .bind(evt.level)
     .bind(Json(evt.burn_count))
     .bind(evt.total_burn_count)
     .bind(Json(evt.incense_buy_count))
@@ -428,6 +435,7 @@ pub async fn write_user_info_to_db(
     .bind(evt.amulet_count)
     .bind(evt.has_sbt_token)
     .bind(Json(evt.has_burn_token))
+    .bind(evt.stake_count)
     .execute(pool)
     .await?;
     Ok(())

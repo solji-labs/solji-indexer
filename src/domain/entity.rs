@@ -127,6 +127,7 @@ pub struct UserActivity {
 #[derive(Debug, BorshDeserialize, BorshSerialize, Serialize)]
 pub struct UserInfo {
     pub user: Pubkey,
+    pub level: u8,
     pub burn_count: [u32; 6],
     pub total_burn_count: u64,
     pub incense_buy_count: [u32; 6],
@@ -148,6 +149,7 @@ pub struct UserInfo {
     pub amulet_count: u64,
     pub has_sbt_token: bool,
     pub has_burn_token: [bool; 6],
+    pub stake_count: u64,
 }
 #[derive(Debug, BorshDeserialize, BorshSerialize, Serialize)]
 pub struct Temple {

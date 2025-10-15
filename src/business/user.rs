@@ -45,7 +45,8 @@ pub async fn fetch_all_user_info(
 
         let medel_level = medal_opt_business_code(&u.current_medal_level);
         // let medal_level = medal_opt_business_code(&u.current_medal_level);
-        println!("UserInfo current_medal_level :{}", medel_level);
+        println!("UserInfo level :{}", u.level);
+        println!("UserInfo stake :{}", u.stake_count);
 
         write_user_info_to_db(pool, u, medel_level).await?;
 

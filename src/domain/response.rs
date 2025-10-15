@@ -37,6 +37,7 @@ pub struct TempleResp {
 #[serde(rename_all = "camelCase")]
 pub struct UserInfoResp {
     pub pubkey: String,
+    pub level: u8,
     pub burn_count: Option<Json<Vec<u32>>>,
     pub total_burn_count: u64,
     pub incense_buy_count: Option<Json<Vec<u32>>>,
@@ -61,6 +62,7 @@ pub struct UserInfoResp {
     pub amulet_count: u64,
     pub has_sbt_token: bool,
     pub has_burn_token: Option<Json<Vec<bool>>>,
+    pub stake_count: u64,
     #[serde(serialize_with = "ndt_opt_as_str")]
     pub create_time: Option<NaiveDateTime>,
     #[serde(serialize_with = "ndt_opt_as_str")]
