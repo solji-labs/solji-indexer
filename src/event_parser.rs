@@ -4,14 +4,15 @@ use solana_sdk::pubkey::Pubkey;
 
 use crate::events::ProgramEvent;
 use temple::state::event::{
-    AmuletDropped, AmuletMinted, DonationCompleted, DonationNFTMinted, FortuneDrawn, IncenseBurned,
-    RewardsProcessed, WishCreated,
+    AmuletDropped, AmuletMinted, DonationCompleted, DonationNFTMinted, FortuneDrawn,
+    FortuneNFTMinted, IncenseBurned, RewardsProcessed, WishCreated,
 };
 
 // Event discriminators from IDL
 const DONATION_COMPLETED_DISCRIMINATOR: [u8; 8] = [34, 178, 117, 6, 39, 189, 241, 48];
 const DONATION_NFT_MINTED_DISCRIMINATOR: [u8; 8] = [142, 88, 211, 148, 62, 90, 172, 20];
 const FORTUNE_DRAWN_DISCRIMINATOR: [u8; 8] = [134, 252, 88, 211, 24, 112, 209, 240];
+const FORTUNE_NFT_MINTED_DISCRIMINATOR: [u8; 8] = [226, 138, 253, 243, 89, 224, 0, 199];
 const AMULET_DROPPED_DISCRIMINATOR: [u8; 8] = [24, 100, 210, 40, 5, 63, 105, 27];
 const AMULET_MINTED_DISCRIMINATOR: [u8; 8] = [5, 74, 5, 29, 227, 131, 7, 204];
 const REWARDS_PROCESSED_DISCRIMINATOR: [u8; 8] = [217, 74, 206, 32, 228, 181, 17, 146];
@@ -172,6 +173,21 @@ fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
             })
         } else {
             println!("Failed to deserialize AmuletMinted");
+            None
+        }
+    } else if discriminator == &FORTUNE_NFT_MINTED_DISCRIMINATOR {
+        println!("Matched FORTUNE_NFT_MINTED_DISCRIMINATOR");
+        if let Ok(event) = FortuneNFTMinted::try_from_slice(&decoded_bytes[8..]) {
+            Some(ProgramEvent::FortuneNFTMinted {
+                user: Pubkey::new_from_array(event.user.to_bytes()),
+                fortune_nft_mint: Pubkey::new_from_array(event.fortune_nft_mint.to_bytes()),
+                fortune_result: event.fortune_result,
+                merit_cost: event.merit_cost,
+                serial_number: event.serial_number,
+                timestamp: event.timestamp,
+            })
+        } else {
+            println!("Failed to deserialize FortuneNFTMinted");
             None
         }
     } else if discriminator == &INCENSE_BURNED_DISCRIMINATOR {

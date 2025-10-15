@@ -276,6 +276,8 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
     .execute(pool.as_ref())
     .await?;
 
+    // Temple Level table (removed - not needed for current implementation)
+
     // Create indexes (ignore if already exists)
     let _ = sqlx::query(
         r#"CREATE INDEX idx_user_donations_user_pubkey ON user_donations(user_pubkey)"#,
@@ -303,7 +305,8 @@ async fn get_total_fortune_nfts(pool: &DbPool) -> Result<i32, sqlx::Error> {
     // Count total fortune NFTs minted from fortune_nft_mint_history table
     let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM fortune_nft_mint_history")
         .fetch_one(pool.as_ref())
-        .await?;
+        .await
+        .unwrap_or(0);
     Ok(count as i32)
 }
 
