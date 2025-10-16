@@ -352,13 +352,14 @@ pub async fn write_user_info_to_db(
             has_sbt_token,
             has_burn_token,
             stake_count,
+            tower_level,
             create_time,
             update_time
         )
         VALUES (
             ?, ?,?, ?, ?, ?,?, ?, FROM_UNIXTIME(?),
             ?,?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?),
-            ?, FROM_UNIXTIME(?), ?,?, ?,?, ?,NOW(), NOW()
+            ?, FROM_UNIXTIME(?), ?,?, ?,?, ?,?,NOW(), NOW()
         )
         ON DUPLICATE KEY UPDATE
             level                    = ?,
@@ -384,6 +385,7 @@ pub async fn write_user_info_to_db(
             has_sbt_token            = ?,
             has_burn_token           = ?,
             stake_count              = ?,
+            tower_level              = ?,
             update_time              = NOW()
         "#,
     )
@@ -412,6 +414,7 @@ pub async fn write_user_info_to_db(
     .bind(evt.has_sbt_token)
     .bind(Json(evt.has_burn_token))
     .bind(evt.stake_count)
+    .bind(evt.tower_level)
     // UPDATE 部分（再绑定一遍）
     .bind(evt.level)
     .bind(Json(evt.burn_count))
@@ -436,6 +439,7 @@ pub async fn write_user_info_to_db(
     .bind(evt.has_sbt_token)
     .bind(Json(evt.has_burn_token))
     .bind(evt.stake_count)
+    .bind(evt.tower_level)
     .execute(pool)
     .await?;
     Ok(())

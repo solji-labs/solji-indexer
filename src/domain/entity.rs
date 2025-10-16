@@ -150,6 +150,7 @@ pub struct UserInfo {
     pub has_sbt_token: bool,
     pub has_burn_token: [bool; 6],
     pub stake_count: u64,
+    pub tower_level: i8,
 }
 #[derive(Debug, BorshDeserialize, BorshSerialize, Serialize)]
 pub struct Temple {

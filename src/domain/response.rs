@@ -63,6 +63,7 @@ pub struct UserInfoResp {
     pub has_sbt_token: bool,
     pub has_burn_token: Option<Json<Vec<bool>>>,
     pub stake_count: u64,
+    pub tower_level: i8,
     #[serde(serialize_with = "ndt_opt_as_str")]
     pub create_time: Option<NaiveDateTime>,
     #[serde(serialize_with = "ndt_opt_as_str")]
