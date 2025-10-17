@@ -23,7 +23,7 @@ async fn main() -> std::io::Result<()> {
     let port: u16 = std::env::var("PORT")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(8080);
+        .unwrap_or(8888);
 
     let pool: Pool<MySql> = connect_db().await.expect("connect db");
 
