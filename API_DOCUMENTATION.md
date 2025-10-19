@@ -317,7 +317,7 @@ GET /api/donation/tiers
 }
 ```
 
-#### 提交捐赠交易
+#### 提交捐赠交易处理
 ```http
 POST /api/donation/submit
 Content-Type: application/json
@@ -329,6 +329,8 @@ Content-Type: application/json
   "transaction_signature": "5xXxX..."
 }
 ```
+
+**说明：** 此接口用于接收前端已提交到区块链的捐赠交易签名，进行验证和索引处理。索引器会验证交易有效性，更新用户捐赠记录、徽章状态和功德点。
 
 **响应：**
 ```json

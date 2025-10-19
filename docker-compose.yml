@@ -1,0 +1,27 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  # Nginx 反向代理服务
+  nginx:
+    image: nginx:alpine
+    container_name: solji_nginx
+    restart: always
+    ports:
+      - "80:80"
+    network_mode: "host"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+
+    
+  sonia-indexer:
+      image: sonia831/solji-indexer:v1.0.0
+      container_name: solji_indexer_sonia
+      restart: always
+      network_mode: "host"
+      environment:
+        - RUST_LOG=trace
+        - API_PORT=8080
+        - DATABASE_URL=mysql://root:Solji123@localhost:33306/solji_db
+        - SOLANA_RPC_URL=https://api.devnet.solana.com
+
