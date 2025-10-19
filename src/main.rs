@@ -2,6 +2,7 @@ mod api;
 mod db;
 mod event_parser;
 mod events;
+mod idl;
 mod indexer;
 mod processor;
 mod rewards;
@@ -28,7 +29,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize database
     println!("Initializing database...");
-    let db_pool = create_pool(&config.database_url).await?;
+    let db_pool = create_pool(
+        &config.database_url,
+        config.db_max_open_conns,
+        config.db_max_idle_conns,
+        config.db_conn_max_lifetime,
+    )
+    .await?;
     init_database(&db_pool).await?;
     println!("Database initialized successfully");
 
@@ -79,10 +86,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         db_pool: db_pool.clone(),
     };
 
-    let app = create_router(state);
-
-    let addr = "0.0.0.0:3000";
+    let addr = "0.0.0.0:8080";
     println!("Starting HTTP server on {}", addr);
+
+    // Add CORS middleware
+    let cors = tower_http::cors::CorsLayer::new()
+        .allow_origin(tower_http::cors::Any)
+        .allow_methods(tower_http::cors::Any)
+        .allow_headers(tower_http::cors::Any);
+
+    let app = create_router(state).layer(cors);
 
     // Start the event listener in background
     tokio::spawn(async move {

@@ -242,7 +242,45 @@ async fn handle_donation_completed(
     );
 
     let user_str = user.to_string();
-    // 1. Update user donation record
+    let amount_sol = amount as f64 / 1_000_000_000.0;
+
+    // Map level to tier string
+    let tier = match level {
+        1 => "bronze",
+        2 => "silver",
+        3 => "gold",
+        4 => "supreme",
+        _ => "none",
+    };
+
+    // Calculate merit gained based on level (from program logic)
+    let merit_gained = match level {
+        1 => 65,
+        2 => 1300,
+        3 => 14000,
+        4 => 120000,
+        _ => 0,
+    };
+
+    // 1. Insert donation history record
+    match crate::db::insert_donation_history(
+        pool,
+        &user_str,
+        amount_sol,
+        tier,
+        merit_gained as i32,
+        "", // transaction_signature - TODO: get from transaction data
+    )
+    .await
+    {
+        Ok(_) => println!("✅ Successfully inserted donation history record"),
+        Err(e) => {
+            eprintln!("❌ Failed to insert donation history record: {:?}", e);
+            return Err(e);
+        }
+    }
+
+    // 2. Update user donation record
     let current_time = get_current_cst_time();
     match crate::db::upsert_user_donation(
         pool,

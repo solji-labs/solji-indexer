@@ -1,0 +1,6082 @@
+{
+  "address": "D9immZaczS2ASFqqSux2iCCAaFat7vcusB1PQ2SW6d95",
+  "metadata": {
+    "name": "temple",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "burn_incense",
+      "docs": [
+        "Distribute Buddha NFT to top 10,000 donors",
+        "Burn incense"
+      ],
+      "discriminator": [
+        192,
+        206,
+        18,
+        53,
+        21,
+        1,
+        239,
+        134
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "User account (payer, signer)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "temple_authority",
+          "writable": true
+        },
+        {
+          "name": "temple_treasury",
+          "writable": true
+        },
+        {
+          "name": "temple_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_state",
+          "docs": [
+            "User account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_incense_state",
+          "docs": [
+            "User incense state"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  105,
+                  110,
+                  99,
+                  101,
+                  110,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_mint_account",
+          "docs": [
+            "NFT mint"
+          ],
+          "writable": true
+        },
+        {
+          "name": "nft_associated_token_account",
+          "docs": [
+            "User's NFT associated account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "meta_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_metadata_program"
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "token_metadata_program"
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "incense_id",
+          "type": "u8"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "has_merit_amulet",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "create_nft_mint",
+      "docs": [
+        "Create NFT mint"
+      ],
+      "discriminator": [
+        220,
+        240,
+        28,
+        248,
+        182,
+        238,
+        138,
+        21
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "temple_authority",
+          "writable": true
+        },
+        {
+          "name": "nft_mint_account",
+          "docs": [
+            "nft mint"
+          ],
+          "writable": true
+        },
+        {
+          "name": "temple_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "meta_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_metadata_program"
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "token_metadata_program"
+            }
+          }
+        },
+        {
+          "name": "master_edition_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_metadata_program"
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  100,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "token_metadata_program"
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "incense_id",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "create_shop_config",
+      "docs": [
+        "Create shop configuration"
+      ],
+      "discriminator": [
+        19,
+        135,
+        141,
+        222,
+        241,
+        60,
+        246,
+        244
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "address": "FcKkQZRxD5P6JwGv58vGRAcX3CkjbX8oqFiygz6ohceU"
+        },
+        {
+          "name": "shop_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  104,
+                  111,
+                  112,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "temple_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "temple_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "shop_items",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "ShopItem"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_temple_config",
+      "docs": [
+        "Create temple config initialization"
+      ],
+      "discriminator": [
+        227,
+        91,
+        153,
+        89,
+        83,
+        215,
+        178,
+        242
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "address": "FcKkQZRxD5P6JwGv58vGRAcX3CkjbX8oqFiygz6ohceU"
+        },
+        {
+          "name": "temple_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "treasury",
+          "type": "pubkey"
+        },
+        {
+          "name": "regular_fortune",
+          "type": {
+            "defined": {
+              "name": "FortuneConfig"
+            }
+          }
+        },
+        {
+          "name": "buddha_fortune",
+          "type": {
+            "defined": {
+              "name": "FortuneConfig"
+            }
+          }
+        },
+        {
+          "name": "donation_levels",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "DonationLevelConfig"
+              }
+            }
+          }
+        },
+        {
+          "name": "donation_rewards",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "DonationRewardConfig"
+              }
+            }
+          }
+        },
+        {
+          "name": "temple_levels",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "TempleLevelConfig"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_wish",
+      "docs": [
+        "Make wish"
+      ],
+      "discriminator": [
+        47,
+        64,
+        159,
+        45,
+        95,
+        19,
+        61,
+        165
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "wish_account",
+          "writable": true
+        },
+        {
+          "name": "wish_tower_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  119,
+                  105,
+                  115,
+                  104,
+                  95,
+                  116,
+                  111,
+                  119,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_incense_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  105,
+                  110,
+                  99,
+                  101,
+                  110,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "temple_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "content_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "is_anonymous",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "donate_fund",
+      "docs": [
+        "===== Donation instructions =====",
+        "Donate fund (core donation logic)"
+      ],
+      "discriminator": [
+        117,
+        129,
+        166,
+        102,
+        104,
+        194,
+        124,
+        179
+      ],
+      "accounts": [
+        {
+          "name": "donor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "temple_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "donor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_donation_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  100,
+                  111,
+                  110,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "donor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_incense_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  105,
+                  110,
+                  99,
+                  101,
+                  110,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "donor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "temple_treasury",
+          "writable": true
+        },
+        {
+          "name": "medal_nft_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  100,
+                  97,
+                  108,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "temple_config"
+              },
+              {
+                "kind": "account",
+                "path": "donor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "medal_nft_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  100,
+                  97,
+                  108,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "temple_config"
+              },
+              {
+                "kind": "account",
+                "path": "donor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "medal_nft_token_account",
+          "docs": [
+            "User's medal NFT associated account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "donor"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "medal_nft_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "medal_nft_metadata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_metadata_program"
+              },
+              {
+                "kind": "account",
+                "path": "medal_nft_mint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "token_metadata_program"
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "draw_fortune",
+      "docs": [
+        "Draw fortune"
+      ],
+      "discriminator": [
+        167,
+        57,
+        67,
+        163,
+        76,
+        93,
+        229,
+        97
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_incense_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  105,
+                  110,
+                  99,
+                  101,
+                  110,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "temple_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "fortune_nft_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  111,
+                  114,
+                  116,
+                  117,
+                  110,
+                  101,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "temple_config"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "user_incense_state.total_draws",
+                "account": "UserIncenseState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fortune_nft_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  111,
+                  114,
+                  116,
+                  117,
+                  110,
+                  101,
+                  95,
+                  110,
+                  102,
+                  116,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "temple_config"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "user_incense_state.total_draws",
+                "account": "UserIncenseState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fortune_nft_token_account",
+          "docs": [
+            "User's fortune NFT associated account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "fortune_nft_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "fortune_nft_metadata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_metadata_program"
+              },
+              {
+                "kind": "account",
+                "path": "fortune_nft_mint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "token_metadata_program"
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "use_merit",
+          "type": "bool"
+        },
+        {
+          "name": "has_fortune_amulet",
+          "type": "bool"
+        },
+        {
+          "name": "has_protection_amulet",
+          "type": "bool"
+        }
+      ],
+      "returns": {
+        "defined": {
+          "name": "DrawResult"
+        }
+      }
+    },
+    {
+      "name": "init_user",
+      "docs": [
+        "Initialize user state"
+      ],
+      "discriminator": [
+        14,
+        51,
+        68,
+        159,
+        237,
+        78,
+        158,
+        102
+      ],
+      "accounts": [
+        {
+          "name": "user_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_incense_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  105,
+                  110,
+                  99,
+                  101,
+                  110,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_donation_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  100,
+                  111,
+                  110,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "like_wish",
+      "docs": [
+        "Like wish"
+      ],
+      "discriminator": [
+        237,
+        115,
+        19,
+        77,
+        234,
+        31,
+        168,
+        83
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "wish_account",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "mint_amulet_nft",
+      "docs": [
+        "Mint amulet NFT"
+      ],
+      "discriminator": [
+        242,
+        216,
+        48,
+        78,
+        202,
+        225,
+        160,
+        243
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "User account"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "temple_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_state",
+          "docs": [
+            "User account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_mint_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  109,
+                  117,
+                  108,
+                  101,
+                  116,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  111,
+                  114,
+                  109,
+                  97,
+                  116,
+                  33,
+                  32,
+                  40,
+                  34,
+                  123,
+                  125,
+                  34,
+                  44,
+                  32,
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_associated_token_account",
+          "docs": [
+            "User's NFT associated token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "meta_account",
+          "docs": [
+            "CHECK： Metadata account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_metadata_program"
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "token_metadata_program"
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amulet_type",
+          "type": "u8"
+        },
+        {
+          "name": "source",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "mint_buddha_nft",
+      "docs": [
+        "Mint Buddha NFT"
+      ],
+      "discriminator": [
+        104,
+        31,
+        241,
+        122,
+        252,
+        250,
+        253,
+        0
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "User account"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "temple_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "temple_treasury",
+          "writable": true
+        },
+        {
+          "name": "user_state",
+          "docs": [
+            "User account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_donate_state",
+          "docs": [
+            "Donation account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  100,
+                  111,
+                  110,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_mint_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  66,
+                  117,
+                  100,
+                  100,
+                  104,
+                  97,
+                  78,
+                  70,
+                  84
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "temple_config"
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_associated_token_account",
+          "docs": [
+            "User's NFT associated token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "buddha_nft_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  66,
+                  117,
+                  100,
+                  100,
+                  104,
+                  97,
+                  78,
+                  70,
+                  84
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "temple_config"
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "meta_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_metadata_program"
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "token_metadata_program"
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "mint_wish_tower_nft",
+      "docs": [
+        "Mint wish tower NFT"
+      ],
+      "discriminator": [
+        146,
+        97,
+        143,
+        0,
+        44,
+        17,
+        235,
+        148
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "User account"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "wish_tower_account",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  119,
+                  105,
+                  115,
+                  104,
+                  95,
+                  116,
+                  111,
+                  119,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "temple_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_mint_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  87,
+                  105,
+                  115,
+                  104,
+                  84,
+                  111,
+                  119,
+                  101,
+                  114,
+                  78,
+                  70,
+                  84
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "wish_tower_account"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_associated_token_account",
+          "docs": [
+            "User's NFT associated token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "wish_tower_nft_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  87,
+                  105,
+                  115,
+                  104,
+                  84,
+                  111,
+                  119,
+                  101,
+                  114,
+                  78,
+                  70,
+                  84,
+                  65,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "wish_tower_account"
+              }
+            ]
+          }
+        },
+        {
+          "name": "meta_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_metadata_program"
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "token_metadata_program"
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "purchase_item",
+      "docs": [
+        "=== Shop related ====",
+        "Get shop items list",
+        "Purchase shop items"
+      ],
+      "discriminator": [
+        38,
+        91,
+        106,
+        119,
+        28,
+        153,
+        35,
+        183
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "temple_treasury",
+          "writable": true
+        },
+        {
+          "name": "shop_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  104,
+                  111,
+                  112,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "temple_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "temple_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_incense_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  105,
+                  110,
+                  99,
+                  101,
+                  110,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "item_id",
+          "type": "u8"
+        },
+        {
+          "name": "quantity",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "share_fortune",
+      "docs": [
+        "Share fortune to get rewards"
+      ],
+      "discriminator": [
+        175,
+        114,
+        248,
+        97,
+        144,
+        5,
+        16,
+        202
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_incense_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  105,
+                  110,
+                  99,
+                  101,
+                  110,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "temple_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "share_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "stake_medal_nft",
+      "docs": [
+        "Claim free Buddha NFT (limited to top 10000)",
+        "Stake medal NFT"
+      ],
+      "discriminator": [
+        163,
+        165,
+        87,
+        104,
+        247,
+        42,
+        74,
+        173
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_incense_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  105,
+                  110,
+                  99,
+                  101,
+                  110,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "medal_nft_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  100,
+                  97,
+                  108,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "temple_config"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_mint_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  100,
+                  97,
+                  108,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "temple_config"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_associated_token_account",
+          "docs": [
+            "User's medal NFT associated token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "staked_nft_token_account",
+          "docs": [
+            "Contract's medal NFT token account (for staking)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "temple_config"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "temple_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "unstake_medal_nft",
+      "docs": [
+        "Unstake medal NFT"
+      ],
+      "discriminator": [
+        172,
+        6,
+        149,
+        222,
+        30,
+        31,
+        137,
+        190
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_incense_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  105,
+                  110,
+                  99,
+                  101,
+                  110,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "medal_nft_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  100,
+                  97,
+                  108,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "temple_config"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_mint_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  100,
+                  97,
+                  108,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "temple_config"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_associated_token_account",
+          "docs": [
+            "User's medal NFT associated token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "staked_nft_token_account",
+          "docs": [
+            "Contract's medal NFT token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "temple_config"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint_account"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "temple_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_donation_levels",
+      "docs": [
+        "Update donation level configuration"
+      ],
+      "discriminator": [
+        96,
+        131,
+        75,
+        121,
+        196,
+        186,
+        118,
+        117
+      ],
+      "accounts": [
+        {
+          "name": "temple_config",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "donation_levels",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "DonationLevelConfig"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_donation_rewards",
+      "docs": [
+        "Update donation reward configuration"
+      ],
+      "discriminator": [
+        136,
+        125,
+        168,
+        247,
+        163,
+        84,
+        62,
+        170
+      ],
+      "accounts": [
+        {
+          "name": "temple_config",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "donation_rewards",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "DonationRewardConfig"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_fortune_config",
+      "docs": [
+        "Update fortune drawing configuration"
+      ],
+      "discriminator": [
+        103,
+        193,
+        204,
+        242,
+        205,
+        62,
+        148,
+        221
+      ],
+      "accounts": [
+        {
+          "name": "temple_config",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "regular_fortune",
+          "type": {
+            "defined": {
+              "name": "FortuneConfig"
+            }
+          }
+        },
+        {
+          "name": "buddha_fortune",
+          "type": {
+            "defined": {
+              "name": "FortuneConfig"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_incense_types",
+      "docs": [
+        "Update incense type configuration"
+      ],
+      "discriminator": [
+        36,
+        90,
+        39,
+        8,
+        76,
+        221,
+        92,
+        131
+      ],
+      "accounts": [
+        {
+          "name": "temple_config",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "incense_types",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "IncenseType"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_shop_items",
+      "docs": [
+        "Update shop items configuration"
+      ],
+      "discriminator": [
+        173,
+        103,
+        158,
+        132,
+        232,
+        31,
+        219,
+        239
+      ],
+      "accounts": [
+        {
+          "name": "shop_config",
+          "writable": true
+        },
+        {
+          "name": "temple_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  109,
+                  112,
+                  108,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "shop_items",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "ShopItem"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_temple_levels",
+      "docs": [
+        "Update temple level configuration"
+      ],
+      "discriminator": [
+        91,
+        193,
+        3,
+        146,
+        212,
+        177,
+        214,
+        96
+      ],
+      "accounts": [
+        {
+          "name": "temple_config",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "temple_levels",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "TempleLevelConfig"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_temple_status",
+      "docs": [
+        "Update temple status"
+      ],
+      "discriminator": [
+        45,
+        169,
+        176,
+        19,
+        223,
+        64,
+        40,
+        107
+      ],
+      "accounts": [
+        {
+          "name": "temple_config",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "update_temple_status_by_bit",
+      "docs": [
+        "Update temple status by bit"
+      ],
+      "discriminator": [
+        149,
+        222,
+        218,
+        99,
+        118,
+        195,
+        123,
+        147
+      ],
+      "accounts": [
+        {
+          "name": "temple_config",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "bit",
+          "type": "u8"
+        },
+        {
+          "name": "disabled",
+          "type": "bool"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "BuddhaNFT",
+      "discriminator": [
+        42,
+        248,
+        94,
+        111,
+        99,
+        57,
+        196,
+        133
+      ]
+    },
+    {
+      "name": "FortuneNFT",
+      "discriminator": [
+        217,
+        82,
+        61,
+        10,
+        112,
+        65,
+        205,
+        232
+      ]
+    },
+    {
+      "name": "GlobalStats",
+      "discriminator": [
+        119,
+        53,
+        78,
+        3,
+        254,
+        129,
+        78,
+        28
+      ]
+    },
+    {
+      "name": "MedalNFT",
+      "discriminator": [
+        43,
+        98,
+        76,
+        249,
+        249,
+        33,
+        17,
+        233
+      ]
+    },
+    {
+      "name": "ShopConfig",
+      "discriminator": [
+        172,
+        16,
+        104,
+        212,
+        87,
+        129,
+        125,
+        155
+      ]
+    },
+    {
+      "name": "TempleConfig",
+      "discriminator": [
+        27,
+        116,
+        7,
+        67,
+        209,
+        48,
+        108,
+        209
+      ]
+    },
+    {
+      "name": "UserDonationState",
+      "discriminator": [
+        220,
+        247,
+        222,
+        176,
+        15,
+        57,
+        96,
+        194
+      ]
+    },
+    {
+      "name": "UserIncenseState",
+      "discriminator": [
+        127,
+        125,
+        12,
+        111,
+        67,
+        193,
+        193,
+        53
+      ]
+    },
+    {
+      "name": "UserState",
+      "discriminator": [
+        72,
+        177,
+        85,
+        249,
+        76,
+        167,
+        186,
+        126
+      ]
+    },
+    {
+      "name": "Wish",
+      "discriminator": [
+        19,
+        93,
+        74,
+        238,
+        190,
+        158,
+        94,
+        132
+      ]
+    },
+    {
+      "name": "WishTower",
+      "discriminator": [
+        193,
+        95,
+        124,
+        166,
+        21,
+        93,
+        96,
+        41
+      ]
+    },
+    {
+      "name": "WishTowerNFT",
+      "discriminator": [
+        37,
+        39,
+        34,
+        225,
+        171,
+        31,
+        98,
+        159
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "AmuletDropped",
+      "discriminator": [
+        24,
+        100,
+        210,
+        40,
+        5,
+        63,
+        105,
+        27
+      ]
+    },
+    {
+      "name": "AmuletMinted",
+      "discriminator": [
+        5,
+        74,
+        5,
+        29,
+        227,
+        131,
+        7,
+        204
+      ]
+    },
+    {
+      "name": "DonationCompleted",
+      "discriminator": [
+        34,
+        178,
+        117,
+        6,
+        39,
+        189,
+        241,
+        48
+      ]
+    },
+    {
+      "name": "DonationNFTMinted",
+      "discriminator": [
+        142,
+        88,
+        211,
+        148,
+        62,
+        90,
+        172,
+        20
+      ]
+    },
+    {
+      "name": "FortuneDrawn",
+      "discriminator": [
+        134,
+        252,
+        88,
+        211,
+        24,
+        112,
+        209,
+        240
+      ]
+    },
+    {
+      "name": "FortuneNFTMinted",
+      "discriminator": [
+        226,
+        138,
+        253,
+        243,
+        89,
+        224,
+        0,
+        199
+      ]
+    },
+    {
+      "name": "IncenseBurned",
+      "discriminator": [
+        211,
+        166,
+        224,
+        11,
+        104,
+        105,
+        175,
+        186
+      ]
+    },
+    {
+      "name": "RewardsProcessed",
+      "discriminator": [
+        217,
+        74,
+        206,
+        32,
+        228,
+        181,
+        17,
+        146
+      ]
+    },
+    {
+      "name": "ShopConfigUpdated",
+      "discriminator": [
+        225,
+        68,
+        254,
+        156,
+        42,
+        153,
+        151,
+        172
+      ]
+    },
+    {
+      "name": "WishAddedToTower",
+      "discriminator": [
+        160,
+        192,
+        0,
+        5,
+        186,
+        140,
+        121,
+        8
+      ]
+    },
+    {
+      "name": "WishCreated",
+      "discriminator": [
+        225,
+        167,
+        37,
+        207,
+        75,
+        1,
+        226,
+        130
+      ]
+    },
+    {
+      "name": "WishTowerCreated",
+      "discriminator": [
+        12,
+        159,
+        171,
+        141,
+        71,
+        1,
+        65,
+        54
+      ]
+    },
+    {
+      "name": "WishTowerNFTMinted",
+      "discriminator": [
+        236,
+        199,
+        169,
+        246,
+        132,
+        131,
+        201,
+        15
+      ]
+    },
+    {
+      "name": "WishTowerUpdated",
+      "discriminator": [
+        32,
+        74,
+        144,
+        164,
+        26,
+        236,
+        220,
+        133
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidOwner",
+      "msg": "Input account owner is not the program address"
+    },
+    {
+      "code": 6001,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidIncenseId",
+      "msg": "Invalid incense ID"
+    },
+    {
+      "code": 6003,
+      "name": "InsufficientSolBalance",
+      "msg": "Insufficient SOL balance to pay for incense"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidTempleTreasury",
+      "msg": "Temple treasury account mismatch"
+    },
+    {
+      "code": 6005,
+      "name": "DailyIncenseLimitExceeded",
+      "msg": "Daily incense limit exceeded"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidAmount",
+      "msg": "Invalid Amount"
+    },
+    {
+      "code": 6007,
+      "name": "ExceedDailyIncenseLimit",
+      "msg": "Exceed daily incense limit"
+    },
+    {
+      "code": 6008,
+      "name": "InsufficientIncenseBalance",
+      "msg": "Insufficient incense balance"
+    },
+    {
+      "code": 6009,
+      "name": "DonationOnlyIncense",
+      "msg": "This incense type is only available through donations"
+    },
+    {
+      "code": 6010,
+      "name": "SpecialEffectFailed",
+      "msg": "Failed to trigger special effect"
+    },
+    {
+      "code": 6011,
+      "name": "InsufficientMerit",
+      "msg": "Insufficient merit points"
+    },
+    {
+      "code": 6012,
+      "name": "DailyWishLimitExceeded",
+      "msg": "Daily wish limit exceeded"
+    },
+    {
+      "code": 6013,
+      "name": "WishAlreadyExists",
+      "msg": "Wish already exists"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidWishAccount",
+      "msg": "Invalid wish account"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidUserState",
+      "msg": "Invalid user state"
+    },
+    {
+      "code": 6016,
+      "name": "CannotLikeOwnWish",
+      "msg": "Cannot like own wish"
+    },
+    {
+      "code": 6017,
+      "name": "UserHasBuddhaNFT",
+      "msg": "User has Buddha NFT"
+    },
+    {
+      "code": 6018,
+      "name": "BuddhaNFTSupplyExceeded",
+      "msg": "Buddha NFT supply exceeded"
+    },
+    {
+      "code": 6019,
+      "name": "InsufficientDonation",
+      "msg": "Insufficient donation"
+    },
+    {
+      "code": 6020,
+      "name": "RandomnessNotReady",
+      "msg": "Randomness not ready"
+    },
+    {
+      "code": 6021,
+      "name": "RandomnessNotResolved",
+      "msg": "Randomness not resolved"
+    },
+    {
+      "code": 6022,
+      "name": "RandomnessAlreadyUsed",
+      "msg": "Randomness already used"
+    },
+    {
+      "code": 6023,
+      "name": "RandomnessExpired",
+      "msg": "Randomness expired"
+    },
+    {
+      "code": 6024,
+      "name": "InvalidRandomness",
+      "msg": "Invalid randomness"
+    },
+    {
+      "code": 6025,
+      "name": "RandomnessRequestRequired",
+      "msg": "Randomness request required"
+    },
+    {
+      "code": 6026,
+      "name": "Unauthorized",
+      "msg": "Unauthorized access"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidIncenseType",
+      "msg": "Invalid incense type"
+    },
+    {
+      "code": 6028,
+      "name": "InvalidFortuneConfig",
+      "msg": "Invalid fortune config"
+    },
+    {
+      "code": 6029,
+      "name": "InvalidDonationLevel",
+      "msg": "Invalid donation level"
+    },
+    {
+      "code": 6030,
+      "name": "InvalidTempleLevel",
+      "msg": "Invalid temple level"
+    },
+    {
+      "code": 6031,
+      "name": "UserAlreadyHasMedalNFT",
+      "msg": "User already has medal NFT"
+    },
+    {
+      "code": 6032,
+      "name": "InvalidMedalLevel",
+      "msg": "Invalid medal level"
+    },
+    {
+      "code": 6033,
+      "name": "MedalLevelNotIncreasing",
+      "msg": "Medal level not increasing"
+    },
+    {
+      "code": 6034,
+      "name": "InsufficientDonationForUpgrade",
+      "msg": "Insufficient donation for medal upgrade"
+    },
+    {
+      "code": 6035,
+      "name": "InvalidMedalOwner",
+      "msg": "Invalid medal owner"
+    },
+    {
+      "code": 6036,
+      "name": "InsufficientDonationForMedal",
+      "msg": "Insufficient donation for medal"
+    },
+    {
+      "code": 6037,
+      "name": "UserDoesNotHaveMedalNFT",
+      "msg": "User does not have medal NFT"
+    },
+    {
+      "code": 6038,
+      "name": "MedalAlreadyStaked",
+      "msg": "Medal already staked"
+    },
+    {
+      "code": 6039,
+      "name": "MedalNotStaked",
+      "msg": "Medal not staked"
+    },
+    {
+      "code": 6040,
+      "name": "ShareTooLate",
+      "msg": "Share too late after fortune draw"
+    },
+    {
+      "code": 6041,
+      "name": "NotApproved",
+      "msg": "Not approved"
+    },
+    {
+      "code": 6042,
+      "name": "InsufficientPendingAmulets",
+      "msg": "Insufficient pending amulets balance"
+    },
+    {
+      "code": 6043,
+      "name": "InsufficientStock",
+      "msg": "Insufficient stock for the item"
+    },
+    {
+      "code": 6044,
+      "name": "InvalidShopItemId",
+      "msg": "Invalid shop item ID"
+    },
+    {
+      "code": 6045,
+      "name": "ShopItemNotAvailable",
+      "msg": "Shop item not available"
+    },
+    {
+      "code": 6046,
+      "name": "InvalidMaxLevel",
+      "msg": "Invalid max level for wish tower"
+    },
+    {
+      "code": 6047,
+      "name": "WishTowerCompleted",
+      "msg": "Wish tower is completed"
+    },
+    {
+      "code": 6048,
+      "name": "WishTowerLevelFull",
+      "msg": "Wish tower level is full"
+    },
+    {
+      "code": 6049,
+      "name": "WishNotOwnedByUser",
+      "msg": "Wish not owned by user"
+    }
+  ],
+  "types": [
+    {
+      "name": "AmuletDropped",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amulet_type",
+            "type": "u8"
+          },
+          {
+            "name": "source",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AmuletMinted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amulet_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "source",
+            "type": "string"
+          },
+          {
+            "name": "serial_number",
+            "type": "u32"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuddhaNFT",
+      "docs": [
+        "Buddha NFT"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "serial_number",
+            "type": "u32"
+          },
+          {
+            "name": "minted_at",
+            "type": "i64"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DailyIncenseCount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "incense_id",
+            "type": "u8"
+          },
+          {
+            "name": "count",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DonationCompleted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_donated",
+            "type": "u64"
+          },
+          {
+            "name": "level",
+            "type": "u8"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DonationLevelConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "level",
+            "type": "u8"
+          },
+          {
+            "name": "min_amount_sol",
+            "type": "f64"
+          },
+          {
+            "name": "merit_reward",
+            "type": "u64"
+          },
+          {
+            "name": "incense_reward",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DonationNFTMinted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "nft_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "level",
+            "type": "u8"
+          },
+          {
+            "name": "serial_number",
+            "type": "u32"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DonationRewardConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "min_donation_sol",
+            "type": "f64"
+          },
+          {
+            "name": "incense_id",
+            "type": "u8"
+          },
+          {
+            "name": "incense_amount",
+            "type": "u64"
+          },
+          {
+            "name": "burn_bonus_per_001_sol",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DrawResult",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "fortune",
+            "type": {
+              "defined": {
+                "name": "FortuneResult"
+              }
+            }
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "used_merit",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DynamicConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "incense_types",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "IncenseType"
+                }
+              }
+            }
+          },
+          {
+            "name": "regular_fortune",
+            "type": {
+              "defined": {
+                "name": "FortuneConfig"
+              }
+            }
+          },
+          {
+            "name": "buddha_fortune",
+            "type": {
+              "defined": {
+                "name": "FortuneConfig"
+              }
+            }
+          },
+          {
+            "name": "donation_levels",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "DonationLevelConfig"
+                }
+              }
+            }
+          },
+          {
+            "name": "donation_rewards",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "DonationRewardConfig"
+                }
+              }
+            }
+          },
+          {
+            "name": "temple_levels",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "TempleLevelConfig"
+                }
+              }
+            }
+          },
+          {
+            "name": "special_incense_types",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "SpecialIncenseType"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "FortuneConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "great_luck_prob",
+            "type": "u8"
+          },
+          {
+            "name": "good_luck_prob",
+            "type": "u8"
+          },
+          {
+            "name": "neutral_prob",
+            "type": "u8"
+          },
+          {
+            "name": "bad_luck_prob",
+            "type": "u8"
+          },
+          {
+            "name": "great_bad_luck_prob",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FortuneDrawn",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "fortune_result",
+            "type": "string"
+          },
+          {
+            "name": "used_merit",
+            "type": "bool"
+          },
+          {
+            "name": "amulet_dropped",
+            "type": "bool"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FortuneNFT",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "fortune_result",
+            "type": {
+              "defined": {
+                "name": "FortuneResult"
+              }
+            }
+          },
+          {
+            "name": "minted_at",
+            "type": "i64"
+          },
+          {
+            "name": "merit_cost",
+            "type": "u8"
+          },
+          {
+            "name": "serial_number",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FortuneNFTMinted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "fortune_nft_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "fortune_result",
+            "type": "string"
+          },
+          {
+            "name": "merit_cost",
+            "type": "u32"
+          },
+          {
+            "name": "serial_number",
+            "type": "u32"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FortuneResult",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "GreatLuck"
+          },
+          {
+            "name": "GoodLuck"
+          },
+          {
+            "name": "Neutral"
+          },
+          {
+            "name": "BadLuck"
+          },
+          {
+            "name": "GreatBadLuck"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GlobalStats",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "temple_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_incense_points",
+            "type": "u64"
+          },
+          {
+            "name": "total_merit",
+            "type": "u64"
+          },
+          {
+            "name": "total_draw_fortune",
+            "type": "u64"
+          },
+          {
+            "name": "total_wishes",
+            "type": "u64"
+          },
+          {
+            "name": "total_donations_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "total_users",
+            "type": "u64"
+          },
+          {
+            "name": "total_fortune_nfts",
+            "type": "u64"
+          },
+          {
+            "name": "total_amulets",
+            "type": "u64"
+          },
+          {
+            "name": "total_buddha_lights",
+            "type": "u64"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "IncenseBalance",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "incense_id",
+            "type": "u8"
+          },
+          {
+            "name": "balance",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "IncenseBurned",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "incense_id",
+            "type": "u8"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "IncenseItemConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "merit",
+            "type": "u64"
+          },
+          {
+            "name": "incense_points",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "IncenseType",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u8"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "price_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "merit",
+            "type": "u64"
+          },
+          {
+            "name": "incense_points",
+            "type": "u64"
+          },
+          {
+            "name": "is_donation",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MedalNFT",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "level",
+            "type": "u8"
+          },
+          {
+            "name": "total_donation",
+            "type": "u64"
+          },
+          {
+            "name": "minted_at",
+            "type": "i64"
+          },
+          {
+            "name": "last_upgrade",
+            "type": "i64"
+          },
+          {
+            "name": "merit",
+            "type": "u64"
+          },
+          {
+            "name": "serial_number",
+            "type": "u32"
+          },
+          {
+            "name": "staked_at",
+            "type": {
+              "option": "i64"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardsProcessed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "merit_reward",
+            "type": "u64"
+          },
+          {
+            "name": "incense_points_reward",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ShopConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "temple_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          },
+          {
+            "name": "shop_items",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "ShopItem"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ShopConfigUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "shop_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "temple_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "shop_items",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "ShopItem"
+                }
+              }
+            }
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ShopItem",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u8"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "price",
+            "type": "u64"
+          },
+          {
+            "name": "item_type",
+            "type": {
+              "defined": {
+                "name": "ShopItemType"
+              }
+            }
+          },
+          {
+            "name": "stock",
+            "type": "u64"
+          },
+          {
+            "name": "is_available",
+            "type": "bool"
+          },
+          {
+            "name": "incense_config",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "IncenseItemConfig"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ShopItemType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Incense"
+          },
+          {
+            "name": "Amulet"
+          },
+          {
+            "name": "Prop"
+          },
+          {
+            "name": "Special"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpecialIncenseType",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u8"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "required_donation_sol",
+            "type": "f64"
+          },
+          {
+            "name": "amount_per_donation",
+            "type": "u64"
+          },
+          {
+            "name": "merit",
+            "type": "u64"
+          },
+          {
+            "name": "incense_points",
+            "type": "u64"
+          },
+          {
+            "name": "is_donation_only",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TempleConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "level",
+            "type": "u8"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "total_buddha_nft",
+            "type": "u32"
+          },
+          {
+            "name": "total_medal_nft",
+            "type": "u32"
+          },
+          {
+            "name": "total_amulets",
+            "type": "u32"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "open_time",
+            "type": "u64"
+          },
+          {
+            "name": "donation_deadline",
+            "type": "u64"
+          },
+          {
+            "name": "dynamic_config",
+            "type": {
+              "defined": {
+                "name": "DynamicConfig"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TempleLevelConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "level",
+            "type": "u8"
+          },
+          {
+            "name": "required_incense_points",
+            "type": "u64"
+          },
+          {
+            "name": "required_draw_fortune",
+            "type": "u64"
+          },
+          {
+            "name": "required_wishes",
+            "type": "u64"
+          },
+          {
+            "name": "required_donations_sol",
+            "type": "f64"
+          },
+          {
+            "name": "required_fortune_nfts",
+            "type": "u64"
+          },
+          {
+            "name": "required_amulets",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserDonationState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "donation_amount",
+            "type": "u64"
+          },
+          {
+            "name": "donation_level",
+            "type": "u8"
+          },
+          {
+            "name": "total_donation_count",
+            "type": "u32"
+          },
+          {
+            "name": "last_donation_time",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserIncenseState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "title",
+            "type": {
+              "defined": {
+                "name": "UserTitle"
+              }
+            }
+          },
+          {
+            "name": "incense_points",
+            "type": "u64"
+          },
+          {
+            "name": "merit",
+            "type": "u64"
+          },
+          {
+            "name": "incense_number",
+            "type": "u8"
+          },
+          {
+            "name": "update_time",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "incense_balance",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "IncenseBalance"
+                  }
+                },
+                6
+              ]
+            }
+          },
+          {
+            "name": "daily_incense_count",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "DailyIncenseCount"
+                  }
+                },
+                6
+              ]
+            }
+          },
+          {
+            "name": "daily_draw_count",
+            "type": "u8"
+          },
+          {
+            "name": "last_draw_time",
+            "type": "i64"
+          },
+          {
+            "name": "total_draws",
+            "type": "u32"
+          },
+          {
+            "name": "daily_wish_count",
+            "type": "u8"
+          },
+          {
+            "name": "last_wish_time",
+            "type": "i64"
+          },
+          {
+            "name": "total_wishes",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "has_buddha_nft",
+            "type": "bool"
+          },
+          {
+            "name": "has_medal_nft",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "pending_random_request_id",
+            "type": {
+              "option": {
+                "array": [
+                  "u8",
+                  32
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserTitle",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pilgrim"
+          },
+          {
+            "name": "Disciple"
+          },
+          {
+            "name": "Protector"
+          },
+          {
+            "name": "Patron"
+          },
+          {
+            "name": "Abbot"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Wish",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u64"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "content_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "is_anonymous",
+            "type": "bool"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "likes",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WishAddedToTower",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "tower_id",
+            "type": "u64"
+          },
+          {
+            "name": "wish_id",
+            "type": "u64"
+          },
+          {
+            "name": "level",
+            "type": "u8"
+          },
+          {
+            "name": "level_completed",
+            "type": "bool"
+          },
+          {
+            "name": "tower_completed",
+            "type": "bool"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WishCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "wish_id",
+            "type": "u64"
+          },
+          {
+            "name": "content_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "is_anonymous",
+            "type": "bool"
+          },
+          {
+            "name": "amulet_dropped",
+            "type": "bool"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WishTower",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "wish_count",
+            "type": "u32"
+          },
+          {
+            "name": "level",
+            "type": "u8"
+          },
+          {
+            "name": "wish_ids",
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "last_updated",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WishTowerCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "tower_id",
+            "type": "u64"
+          },
+          {
+            "name": "max_level",
+            "type": "u8"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WishTowerNFT",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "tower_id",
+            "type": "u64"
+          },
+          {
+            "name": "level",
+            "type": "u8"
+          },
+          {
+            "name": "wish_count",
+            "type": "u8"
+          },
+          {
+            "name": "minted_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WishTowerNFTMinted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "nft_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "wish_count",
+            "type": "u32"
+          },
+          {
+            "name": "level",
+            "type": "u8"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WishTowerUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "wish_count",
+            "type": "u32"
+          },
+          {
+            "name": "level",
+            "type": "u8"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -2,14 +2,26 @@ pub mod models;
 
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
-use sqlx::mysql::MySqlPool;
+use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use sqlx::MySqlPool as SqlxMySqlPool;
 use std::sync::Arc;
+use std::time::Duration;
 
 pub type DbPool = Arc<SqlxMySqlPool>;
 
-pub async fn create_pool(database_url: &str) -> Result<DbPool, sqlx::Error> {
-    let pool = MySqlPool::connect(database_url).await?;
+pub async fn create_pool(
+    database_url: &str,
+    max_open_conns: u32,
+    max_idle_conns: u32,
+    conn_max_lifetime: u64,
+) -> Result<DbPool, sqlx::Error> {
+    let pool = MySqlPoolOptions::new()
+        .max_connections(max_open_conns)
+        .min_connections(max_idle_conns)
+        .max_lifetime(Duration::from_secs(conn_max_lifetime))
+        .connect(database_url)
+        .await?;
+
     Ok(Arc::new(pool))
 }
 
