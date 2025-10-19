@@ -4,15 +4,16 @@ use crate::{
     domain::{
         CoinFlip, CoinFlipResp, Destroy, DestroyResp, Donate, DonateCountCreated,
         DonateCountCreatedResp, DonateResp, DrawLots, DrawLotsResp, IncenseBought,
-        IncenseBoughtResp, IncenseBurned, IncenseBurnedResp, LikeCreated, LikeCreatedResp,
-        MedalMinted, MedalMintedResp, MedalUpgraded, MedalUpgradedResp, PageReq, SbtMinted,
-        SbtMintedResp, Temple, TempleResp, TempleWithdrawal, TempleWithdrawalResp, TimeReq,
-        UserActivity, UserActivityResp, UserDonateResp, UserInfo, UserInfoResp, UserMedalResp,
-        WishCreated, WishCreatedResp,
+        IncenseBoughtResp, IncenseBurned, IncenseBurnedResp, IncenseRule, IncenseRuleResp,
+        LikeCreated, LikeCreatedResp, MedalMinted, MedalMintedResp, MedalUpgraded,
+        MedalUpgradedResp, PageReq, SbtMinted, SbtMintedResp, Temple, TempleResp, TempleWithdrawal,
+        TempleWithdrawalResp, TimeReq, UserActivity, UserActivityResp, UserDonateResp, UserInfo,
+        UserInfoResp, UserMedalResp, WishCreated, WishCreatedResp,
     },
     utils::PageResp,
 };
 use anyhow::{Context, Ok, Result};
+use solana_sdk::pubkey::Pubkey;
 use sqlx::{mysql::MySqlPoolOptions, types::Json, MySql, MySqlPool, Pool, QueryBuilder};
 
 pub async fn connect_db() -> Result<MySqlPool> {
@@ -512,6 +513,65 @@ pub async fn write_temple_to_db(pool: &Pool<MySql>, evt: Temple) -> Result<()> {
     .execute(pool)
     .await?;
     Ok(())
+}
+
+pub async fn write_config_to_db(
+    pool: &Pool<MySql>,
+    name: &str,
+    admin: &String,
+    evt: &IncenseRule,
+) -> Result<()> {
+    sqlx::query(
+        r#"
+        INSERT INTO incense_rules_config (
+            admin,
+            name,
+            incense_price,
+            merit_value,
+            incense_value,
+            create_time,
+            update_time
+        )
+        VALUES (
+            ?, ?,?, ?,?, NOW(), NOW()
+        )
+        ON DUPLICATE KEY UPDATE
+            admin                 = ?,
+            name                  = ?,
+            incense_price         = ?,
+            merit_value           = ?,
+            incense_value         = ?,
+            update_time           = NOW()
+        "#,
+    )
+    // INSERT 部分
+    .bind(admin)
+    .bind(name)
+    .bind(evt.incense_price)
+    .bind(evt.merit_value)
+    .bind(evt.incense_value)
+    // UPDATE 部分（再绑定一遍）
+    .bind(admin)
+    .bind(name)
+    .bind(evt.incense_price)
+    .bind(evt.merit_value)
+    .bind(evt.incense_value)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn query_incense_types(pool: &Pool<MySql>) -> Result<Vec<IncenseRuleResp>, sqlx::Error> {
+    sqlx::query_as::<_, IncenseRuleResp>(
+        r#"
+        SELECT
+            *
+        FROM incense_rules_config
+        WHERE is_deleted = 0
+        "#,
+    )
+    .fetch_all(pool)
+    .await
 }
 
 pub async fn get_temple_by_admin(

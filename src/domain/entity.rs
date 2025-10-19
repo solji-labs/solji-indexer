@@ -167,3 +167,19 @@ pub struct Temple {
     pub buddha_nft_count: u64,
     pub wealth: u64,
 }
+
+#[derive(Debug, BorshDeserialize, BorshSerialize, Serialize)]
+pub struct IncenseRulesConfig {
+    pub admin: Pubkey,
+    // 香的规则
+    pub rules: [IncenseRule; 6],
+}
+#[derive(Debug, BorshDeserialize, BorshSerialize, Serialize)]
+pub struct IncenseRule {
+    // 香的价格
+    pub incense_price: u64,
+    // 功德值
+    pub merit_value: u64,
+    // 香火值
+    pub incense_value: u64,
+}

@@ -35,6 +35,19 @@ pub struct TempleResp {
 
 #[derive(Debug, Serialize, FromRow)]
 #[serde(rename_all = "camelCase")]
+pub struct IncenseRuleResp {
+    pub name: String,
+    pub incense_price: u64,
+    pub merit_value: u64,
+    pub incense_value: u64,
+    #[serde(serialize_with = "ndt_opt_as_str")]
+    pub create_time: Option<NaiveDateTime>,
+    #[serde(serialize_with = "ndt_opt_as_str")]
+    pub update_time: Option<NaiveDateTime>,
+}
+
+#[derive(Debug, Serialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct UserInfoResp {
     pub pubkey: String,
     pub level: u8,
@@ -238,6 +251,7 @@ pub struct SbtMintedResp {
     pub event_time: Option<NaiveDateTime>,
 }
 #[derive(Debug, Serialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct UserActivityResp {
     pub user: String,
     pub activity_type: String,

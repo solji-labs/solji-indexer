@@ -8,7 +8,7 @@ use sol_ji_service::{
         page_donate_count_created, page_draw_lots, page_incense_bought, page_incense_burned,
         page_like_created, page_medal_minted, page_medal_upgraded, page_nft_destroy,
         page_sbt_minted, page_temple_withdrawal, page_user_info, page_wish_created,
-        query_interactions_count, query_user_activity, query_user_count,
+        query_incense_types, query_interactions_count, query_user_activity, query_user_count,
         query_user_donation_ranking, query_user_merit_ranking,
     },
     utils::ApiResponse,
@@ -33,6 +33,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(Cors::permissive()) // 开发期跨域
             .app_data(web::Data::new(pool.clone())) // 传入连接池
+            .service(query_incense_types_handler)
             .service(query_temple_handler)
             .service(query_user_info_handler)
             .service(query_user_info_page_handler)
@@ -46,6 +47,19 @@ async fn main() -> std::io::Result<()> {
     .bind((host.as_str(), port))?
     .run()
     .await
+}
+
+#[get("/queryIncenseTypes")]
+pub async fn query_incense_types_handler(
+    pool: web::Data<Pool<MySql>>,
+) -> actix_web::Result<impl Responder> {
+    match query_incense_types(pool.get_ref()).await {
+        Ok(resp) => Ok(HttpResponse::Ok().json(ApiResponse::ok(resp))),
+        Err(e) => {
+            eprintln!("query error: {e:?}");
+            Ok(HttpResponse::InternalServerError().json(ApiResponse::<()>::err("internal error")))
+        }
+    }
 }
 
 /// 寺庙信息

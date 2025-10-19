@@ -3,7 +3,7 @@ use std::{str::FromStr, time::Duration};
 use chrono::{DateTime, Local};
 use dotenvy::dotenv;
 use sol_ji_service::{
-    business::{fetch_all_user_info, fetch_temple_once},
+    business::{fetch_all_user_info, fetch_burn_incense_type_once, fetch_temple_once},
     infra::connect_db,
 };
 use solana_client::nonblocking::rpc_client::RpcClient;
@@ -21,6 +21,7 @@ async fn main() -> anyhow::Result<()> {
     let rpc = RpcClient::new_with_commitment(rpc_url, CommitmentConfig::finalized());
     let pool = connect_db().await?;
     fetch_all_user_info(&rpc, id, &pool).await?;
+    fetch_burn_incense_type_once(&rpc, id, &pool).await?;
     fetch_temple_once(&rpc, id, &pool).await?;
     let mut ticker = interval(Duration::from_secs(5 * 60));
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -32,6 +33,9 @@ async fn main() -> anyhow::Result<()> {
                 }
                 if let Err(e) = fetch_temple_once(&rpc, id,&pool).await {
                     eprintln!("[fetch_temple_once] {e:?}");
+                }
+                if let Err(e) = fetch_burn_incense_type_once(&rpc, id,&pool).await {
+                    eprintln!("[fetch_burn_incense_type_once] {e:?}");
                 }
             }
             _ = tokio::signal::ctrl_c() => {
