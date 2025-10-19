@@ -14,7 +14,13 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
-        dotenvy::dotenv()?;
+        match dotenvy::dotenv() {
+            Ok(_) => println!("Successfully loaded .env file from disk."),
+            Err(e) => println!(
+                "Could not load .env file from disk (expected in Docker): {}",
+                e
+            ),
+        };
 
         let rpc_url = std::env::var("RPC_URL")?;
         let program_id_str = std::env::var("PROGRAM_ID")?;

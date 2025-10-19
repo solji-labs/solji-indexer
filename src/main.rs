@@ -8,7 +8,6 @@ mod processor;
 mod rewards;
 mod test_db;
 mod utils;
-
 use crate::api::{create_router, AppState};
 use crate::db::{create_pool, init_database, update_incense_leaderboard_all_periods};
 use crate::events::ProgramEvent;
@@ -20,6 +19,7 @@ use tokio::sync::{mpsc, RwLock};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("Loaded config");
     // Load config
     let config = Config::from_env()?;
     println!(

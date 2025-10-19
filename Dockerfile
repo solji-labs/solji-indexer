@@ -1,47 +1,50 @@
 # ----------------------------------------------------------------------
-# 阶段 1：编译阶段 (Builder Stage) - 使用 Musl 静态链接
+# Stage 1: Build Stage - Dynamic linking (default GNU target)
 # ----------------------------------------------------------------------
 FROM rust:latest AS builder
 
-# 安装 Musl 工具链和 C 语言级别的开发包
+# Install build dependencies (especially libssl-dev for openssl-sys crate to find headers)
 RUN apt-get update && apt-get install -y \
     pkg-config libssl-dev build-essential \
-    musl-tools \
     && rm -rf /var/lib/apt/lists/*
 
-# 添加 Musl 编译目标
-RUN rustup target add x86_64-unknown-linux-musl
-
-# 设置容器工作目录为 /app
+# Set container working directory to /app
 WORKDIR /app
 
-# 1. 复制整个构建上下文 (即 /Users/tinachan/solji/ 目录下的所有内容)
+# 1. Cache dependencies - Copy only Cargo.toml/Cargo.lock
+COPY Cargo.toml Cargo.lock ./
+
+# 2. Try to cache dependencies (use default target, skip Musl step)
+RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release
+RUN rm -rf src
+
+# 3. Copy all source code
 COPY . .
 
-# 2. 切换到索引器主项目目录
-WORKDIR /app/solji-indexer 
-
-# 3. 编译项目 - 关键：指定 musl 目标
-# Cargo.toml 中可能需要指定 musl 静态链接，如果需要请手动调整
-RUN cargo build --release --target x86_64-unknown-linux-musl
+# 4. Final build (use default dynamic linking target)
+RUN cargo build --release
 
 # ----------------------------------------------------------------------
-# 阶段 2：运行阶段 (Runtime Stage) - 保持极小化镜像
+# Stage 2: Runtime Stage - Ensure dynamic libraries exist
 # ----------------------------------------------------------------------
-# 使用最小的 Alpine Linux 镜像 (它原生使用 Musl) 或 debian-slim 都可以，这里沿用 debian
 FROM debian:bookworm-slim
 
-# 安装运行时的 OpenSSL 库和 CA 证书 (用于 HTTPS/MySQL 连接)
+# Install runtime dynamic OpenSSL libraries (libssl3 is the runtime required library)
 RUN apt-get update && apt-get install -y \
-    openssl ca-certificates \
+    libssl3 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制编译好的二进制文件
-# 重点：二进制文件现在位于 musl 目录
-COPY --from=builder /app/solji-indexer/target/x86_64-unknown-linux-musl/release/solji-indexer /usr/local/bin/solji-indexer
+# Copy compiled binary (dynamic linking target path is /app/target/release/)
+COPY --from=builder /app/target/release/solji-indexer /usr/local/bin/solji-indexer
 
-# 暴露应用端口
+# Copy .env file
+COPY .env /usr/local/bin/.env
+
+# Set working directory to program directory
+WORKDIR /usr/local/bin
+
+# Expose application port
 EXPOSE 8080
 
-# 定义容器启动时执行的命令
+# Define command to execute when container starts
 CMD ["/usr/local/bin/solji-indexer"]
