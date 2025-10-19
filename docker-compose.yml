@@ -8,8 +8,8 @@ services:
     container_name: solji_nginx
     restart: always
     ports:
-      - "80:80"
-    network_mode: "host"
+      - "8091:80"
+    # network_mode: "host"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
 
@@ -19,9 +19,9 @@ services:
       image: sonia831/solji-indexer:v1.0.0
       container_name: solji_indexer_sonia
       restart: always
-      network_mode: "host"
+      # network_mode: "host"
       environment:
         - RUST_LOG=trace
         - API_PORT=8080
-        - DATABASE_URL=mysql://root:Solji123@localhost:33306/solji_db
+        - DATABASE_URL=mysql://root:Solji123@185.234.74.185:33306/solji_db
         - SOLANA_RPC_URL=https://api.devnet.solana.com
