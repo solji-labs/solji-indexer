@@ -43,3 +43,7 @@ rust_decimal = { version = "1.0", features = ["serde"] }
 # API
 axum = "0.8.6"
 tower-http = { version = "0.6.1", features = ["cors"] }
+# OpenAPI and Swagger UI
+utoipa = { version = "5.1.1", features = ["axum_extras", "debug"] }
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
+utoipa-axum = { version = "0", features = ["debug"] }

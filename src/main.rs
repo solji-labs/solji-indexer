@@ -1,4 +1,4 @@
-mod api;
+mod api_router;
 mod db;
 mod event_parser;
 mod events;
@@ -6,17 +6,20 @@ mod idl;
 mod indexer;
 mod processor;
 mod rewards;
-mod test_db;
 mod utils;
-use crate::api::{create_router, AppState};
-use crate::db::{create_pool, init_database, update_incense_leaderboard_all_periods};
+
+use crate::api_router::*;
+use crate::db::{create_pool, init_database};
 use crate::events::ProgramEvent;
 use crate::indexer::fetcher::IndexerFetcher;
 use crate::processor::start_event_processor;
 use crate::utils::config::Config;
+use axum::Router;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
-
+use tower_http::cors::CorsLayer;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Loaded config");
@@ -59,7 +62,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Start a distributor task that reads from the main channel and distributes to workers
-    let distributor_pool = db_pool.clone();
     tokio::spawn(async move {
         let mut worker_index = 0;
         while let Some(event) = event_receiver.recv().await {
@@ -88,14 +90,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let addr = "0.0.0.0:8080";
     println!("Starting HTTP server on {}", addr);
+    println!(
+        "📚 Swagger UI will be available at http://{}/swagger-ui",
+        addr
+    );
+    println!("📖 OpenAPI spec at http://{}/api-docs/openapi.json", addr);
 
     // Add CORS middleware
-    let cors = tower_http::cors::CorsLayer::new()
+    let cors = CorsLayer::new()
         .allow_origin(tower_http::cors::Any)
         .allow_methods(tower_http::cors::Any)
         .allow_headers(tower_http::cors::Any);
 
-    let app = create_router(state).layer(cors);
+    // 将 create_router 作为起点，然后 merge Swagger 路由
+    let app = create_router(state)
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .layer(cors);
 
     // Start the event listener in background
     tokio::spawn(async move {

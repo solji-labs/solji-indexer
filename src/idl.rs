@@ -1,9 +1,6 @@
 use anchor_lang::prelude::*;
 use serde::{Deserialize, Serialize};
 
-// 从 IDL 文件生成的独立类型定义
-// 不依赖链上程序源码，只依赖 IDL 接口定义
-
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct DonationCompleted {
     pub user: Pubkey,
