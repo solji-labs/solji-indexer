@@ -12,11 +12,13 @@ services:
     # network_mode: "host"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - sonia-indexer
 
 
   # indexer service
   sonia-indexer:
-      image: sonia831/solji-indexer:v1.0.0
+      image: sonia831/solji-indexer:v1.1.0
       container_name: solji_indexer_sonia
       restart: always
       # network_mode: "host"

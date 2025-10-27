@@ -11,12 +11,13 @@ use crate::utils::config::Config;
 // 子模块
 pub mod amulet;
 pub mod donation;
+pub mod fortune;
 pub mod health;
 pub mod incense;
+pub mod models;
 pub mod stats;
 pub mod temple;
 pub mod wishes;
-pub mod models;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -42,6 +43,8 @@ pub fn create_router(state: AppState) -> Router {
         .merge(donation::routes(state.clone()))
         // Amulet
         .merge(amulet::routes(state.clone()))
+        // Fortune
+        .merge(fortune::routes(state.clone()))
 }
 
 /// OpenAPI 文档汇总
@@ -59,14 +62,14 @@ pub fn create_router(state: AppState) -> Router {
     paths(
         // Health
         health::health_check,
-        
+
         // Stats
         stats::get_global_stats,
-        
+
         // Temple
         temple::get_temple_level,
         temple::get_temple_stats,
-        
+
         // Incense
         incense::get_incense_types,
         incense::check_can_burn_incense,
@@ -74,7 +77,7 @@ pub fn create_router(state: AppState) -> Router {
         incense::get_user_nfts,
         incense::get_user_history,
         incense::get_leaderboard,
-        
+
         // Wishes
         wishes::get_wishes,
         wishes::get_public_wishes,
@@ -82,7 +85,7 @@ pub fn create_router(state: AppState) -> Router {
         wishes::get_user_daily_count,
         wishes::get_user_tower,
         wishes::like_wish,
-        
+
         // Donation
         donation::get_tiers,
         donation::get_leaderboard,
@@ -91,11 +94,17 @@ pub fn create_router(state: AppState) -> Router {
         donation::get_user_badges,
         donation::get_honor_wall,
         donation::submit_transaction,
-        
+
         // Amulet
         amulet::get_user_pending,
         amulet::get_user_recent_drop,
         amulet::get_user_owned,
+
+        // Fortune
+        fortune::get_fortune_leaderboard_handler,
+        fortune::get_user_fortune_history_handler,
+        fortune::get_user_fortune_nft_mints_handler,
+        fortune::get_user_fortune_stats_handler,
     ),
     components(
         schemas(
@@ -114,6 +123,7 @@ pub fn create_router(state: AppState) -> Router {
         (name = "Wishes", description = "Wish making and management"),
         (name = "Donation", description = "Donation and merit system"),
         (name = "Amulet", description = "Amulet NFT management"),
+        (name = "Fortune", description = "Fortune drawing and statistics"),
         (name = "Admin", description = "Administrative endpoints"),
     )
 )]

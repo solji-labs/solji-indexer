@@ -308,6 +308,131 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+// ===== FORTUNE-RELATED DATABASE FUNCTIONS =====
+
+/// Get fortune leaderboard (top users by fortune draws)
+pub async fn get_fortune_leaderboard(
+    pool: &DbPool,
+    limit: i32,
+) -> Result<Vec<FortuneLeaderboardEntry>, sqlx::Error> {
+    let query = r#"
+        SELECT
+            user_pubkey,
+            total_fortune_draws as total_draws
+        FROM user_states
+        WHERE total_fortune_draws > 0
+        ORDER BY total_fortune_draws DESC
+        LIMIT ?
+        "#;
+
+    let rows = sqlx::query_as::<_, (String, i32)>(query)
+        .bind(limit)
+        .fetch_all(pool.as_ref())
+        .await?;
+
+    let entries = rows
+        .into_iter()
+        .map(|(user_pubkey, total_draws)| FortuneLeaderboardEntry {
+            user_pubkey,
+            total_draws,
+        })
+        .collect();
+
+    Ok(entries)
+}
+
+/// Get user's fortune statistics
+pub async fn get_user_fortune_stats(
+    pool: &DbPool,
+    user_pubkey: &str,
+) -> Result<UserFortuneStats, sqlx::Error> {
+    // Get total fortune draws from fortune_draw_history table
+    let total_draws = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM fortune_draw_history WHERE user_pubkey = ?",
+    )
+    .bind(user_pubkey)
+    .fetch_one(pool.as_ref())
+    .await?;
+
+    // Get fortune NFT count
+    let fortune_nft_count = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM fortune_nft_mint_history WHERE user_pubkey = ?",
+    )
+    .bind(user_pubkey)
+    .fetch_one(pool.as_ref())
+    .await?;
+
+    // Get recent fortune draws (last 10)
+    let recent_draws = get_user_fortune_draw_history(pool, user_pubkey, 10).await?;
+
+    // Calculate rank
+    let rank = sqlx::query_scalar::<_, Option<i64>>(
+        r#"
+        SELECT COUNT(DISTINCT fd.user_pubkey) + 1
+        FROM fortune_draw_history fd
+        WHERE (
+            SELECT COUNT(*)
+            FROM fortune_draw_history
+            WHERE user_pubkey = fd.user_pubkey
+        ) > (
+            SELECT COUNT(*)
+            FROM fortune_draw_history
+            WHERE user_pubkey = ?
+        )
+        "#,
+    )
+    .bind(user_pubkey)
+    .fetch_one(pool.as_ref())
+    .await?;
+
+    Ok(UserFortuneStats {
+        user_pubkey: user_pubkey.to_string(),
+        total_draws: total_draws as i32,
+        fortune_nft_count: fortune_nft_count as i32,
+        rank: rank.unwrap_or(0) as i32,
+        recent_draws,
+    })
+}
+
+/// Get fortune NFT mints for user
+pub async fn get_user_fortune_nft_mints(
+    pool: &DbPool,
+    user_pubkey: &str,
+    limit: i32,
+) -> Result<Vec<FortuneNftMintHistory>, sqlx::Error> {
+    sqlx::query_as::<_, FortuneNftMintHistory>(
+        r#"
+        SELECT * FROM fortune_nft_mint_history
+        WHERE user_pubkey = ?
+        ORDER BY created_at DESC
+        LIMIT ?
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(limit)
+    .fetch_all(pool.as_ref())
+    .await
+}
+
+// ===== RESPONSE STRUCTS FOR FORTUNE =====
+
+/// Fortune leaderboard entry
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct FortuneLeaderboardEntry {
+    pub user_pubkey: String,
+    pub total_draws: i32,
+}
+
+/// User fortune statistics
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserFortuneStats {
+    pub user_pubkey: String,
+    pub total_draws: i32,
+    pub fortune_nft_count: i32,
+    pub rank: i32,
+    pub recent_draws: Vec<FortuneDrawHistory>,
+}
+
 // ===== data handler =====
 
 use crate::db::models::*;
