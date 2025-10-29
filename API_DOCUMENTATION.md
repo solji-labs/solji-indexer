@@ -1,20 +1,19 @@
-# Solji Indexer API 对接文档
+swagger : [http://185.234.74.185:8091/swagger-ui/](http://185.234.74.185:8091/swagger-ui/#/Incense/get_incense_types)
 
-## 概述
-
-Solji Indexer 是一个基于 Rust 和 Axum 构建的 Web API 服务，用于处理寺庙合约的事件数据，提供查询接口给前端应用。
-
-**服务地址：** `http://localhost:3001` (默认端口)
+**服务地址：** [http://185.234.74.185:8091](http://185.234.74.185:8091/)
 
 ## API 端点总览
 
 ### 基础接口
+
 - `GET /health` - 健康检查
 - `GET /api/stats` - 全局统计数据
 - `GET /api/temple/level` - 寺庙等级信息
 - `GET /api/temple/stats` - 寺庙统计信息
+- `GET /api/temple/activities/recent` -  最近操作列表
 
 ### 香火相关接口
+
 - `GET /api/incense/types` - 获取香火类型
 - `GET /api/incense/can-burn` - 检查是否可以燃烧香火
 - `GET /api/incense/user/{user_pubkey}/burn-count` - 获取用户香火燃烧次数
@@ -23,6 +22,7 @@ Solji Indexer 是一个基于 Rust 和 Axum 构建的 Web API 服务，用于处
 - `GET /api/incense/leaderboard` - 香火排行榜
 
 ### 许愿相关接口
+
 - `GET /api/wishes` - 分页获取许愿列表
 - `GET /api/wishes/public` - 获取公开许愿
 - `GET /api/wishes/user/{user_pubkey}` - 获取用户许愿
@@ -31,6 +31,7 @@ Solji Indexer 是一个基于 Rust 和 Axum 构建的 Web API 服务，用于处
 - `POST /api/wishes/{wish_id}/like` - 点赞许愿
 
 ### 捐赠相关接口
+
 - `GET /api/donation/leaderboard` - 捐赠排行榜
 - `GET /api/donation/check-top-10000` - 检查是否为前10000捐赠者
 - `GET /api/donation/tiers` - 获取捐赠等级信息
@@ -40,37 +41,48 @@ Solji Indexer 是一个基于 Rust 和 Axum 构建的 Web API 服务，用于处
 - `POST /api/donation/submit` - 提交捐赠交易
 
 ### 护身符相关接口
+
 - `GET /api/amulet/user/{user_pubkey}/pending` - 获取用户待领取护身符
 - `GET /api/amulet/user/{user_pubkey}/recent-drop` - 获取用户最近护身符掉落
 - `GET /api/amulet/user/{user_pubkey}/owned` - 获取用户拥有的护身符
 
-### 管理接口
-- `GET /api/admin/update-leaderboard` - 更新排行榜（管理员）
+### 个人信息相关接口
+
+- `GET /api/profile/{user_pubkey}` - 获取用户完整资料
+
+### 个人信息相关接口
 
 ## 详细接口文档
 
 ### 基础接口
 
-#### 健康检查
-```http
+### 健康检查
+
+```
 GET /health
+
 ```
 
 **响应：**
+
 ```json
 {
   "status": "ok",
   "service": "solji-indexer",
   "version": "0.1.0"
 }
+
 ```
 
-#### 全局统计
-```http
+### 全局统计
+
+```
 GET /api/stats
+
 ```
 
 **响应：**
+
 ```json
 {
   "total_merit": 1000000,
@@ -86,14 +98,18 @@ GET /api/stats
   "updated_at": 1732000000,
   "created_at": "2025-01-01T00:00:00Z"
 }
+
 ```
 
-#### 寺庙等级
-```http
+### 寺庙等级
+
+```
 GET /api/temple/level
+
 ```
 
 **响应：**
+
 ```json
 {
   "current_level": 2,
@@ -121,16 +137,20 @@ GET /api/temple/level
   "progress_percentage": 75.5,
   "updated_at": 1732000000
 }
+
 ```
 
 ### 香火相关接口
 
-#### 获取香火类型
-```http
+### 获取香火类型
+
+```
 GET /api/incense/types
+
 ```
 
 **响应：**
+
 ```json
 {
   "incense_types": [
@@ -176,19 +196,52 @@ GET /api/incense/types
     }
   ]
 }
+
 ```
 
-#### 检查燃烧香火限制
-```http
+#### 获取最近活动
+
+```
+GET /api/temple/activities/recent
+
+```
+
+**响应：**
+
+```json
+{
+  "activities": [
+    {
+      "user_pubkey": "0x7a3b...4f2c",
+      "action": "burned incense",
+      "created_at": "2025-01-01T12:00:00Z"
+    },
+    {
+      "user_pubkey": "0x9d1e...8a6b",
+      "action": "drew fortune",
+      "created_at": "2025-01-01T11:45:00Z"
+    }
+  ],
+  "count": 2
+}
+
+```
+
+### 检查燃烧香火限制
+
+```
 GET /api/incense/can-burn?user={user_pubkey}&incense_type={type}&amount={amount}
+
 ```
 
 **查询参数：**
+
 - `user`: 用户钱包地址
 - `incense_type`: 香火类型 ID (数字)
 - `amount`: 燃烧数量
 
 **响应：**
+
 ```json
 {
   "can_burn": true,
@@ -197,14 +250,18 @@ GET /api/incense/can-burn?user={user_pubkey}&incense_type={type}&amount={amount}
   "requested_amount": 5,
   "max_daily_limit": 10
 }
+
 ```
 
-#### 用户香火燃烧次数
-```http
+### 用户香火燃烧次数
+
+```
 GET /api/incense/user/{user_pubkey}/burn-count
+
 ```
 
 **响应：**
+
 ```json
 {
   "user_pubkey": "UserPubkey...",
@@ -216,20 +273,25 @@ GET /api/incense/user/{user_pubkey}/burn-count
   ],
   "max_daily_limit": 10
 }
+
 ```
 
 ### 许愿相关接口
 
-#### 分页获取许愿
-```http
+### 分页获取许愿
+
+```
 GET /api/wishes?limit=20&offset=0
+
 ```
 
 **查询参数：**
+
 - `limit`: 每页数量 (默认20, 最大100)
 - `offset`: 偏移量 (默认0)
 
 **响应：**
+
 ```json
 {
   "wishes": [
@@ -249,14 +311,18 @@ GET /api/wishes?limit=20&offset=0
     "count": 1
   }
 }
+
 ```
 
-#### 用户许愿塔信息
-```http
+### 用户许愿塔信息
+
+```
 GET /api/wish-tower/{user_pubkey}
+
 ```
 
 **响应：**
+
 ```json
 {
   "user_pubkey": "UserPubkey...",
@@ -264,16 +330,20 @@ GET /api/wish-tower/{user_pubkey}
   "level": 2,
   "last_updated": "2025-01-01T10:00:00Z"
 }
+
 ```
 
 ### 捐赠相关接口
 
-#### 获取捐赠等级
-```http
+### 获取捐赠等级
+
+```
 GET /api/donation/tiers
+
 ```
 
 **响应：**
+
 ```json
 {
   "tiers": [
@@ -315,10 +385,12 @@ GET /api/donation/tiers
     }
   ]
 }
+
 ```
 
-#### 提交捐赠交易处理
-```http
+### 提交捐赠交易
+
+```
 POST /api/donation/submit
 Content-Type: application/json
 
@@ -328,11 +400,11 @@ Content-Type: application/json
   "tier": "bronze",
   "transaction_signature": "5xXxX..."
 }
+
 ```
 
-**说明：** 此接口用于接收前端已提交到区块链的捐赠交易签名，进行验证和索引处理。索引器会验证交易有效性，更新用户捐赠记录、徽章状态和功德点。
-
 **响应：**
+
 ```json
 {
   "success": true,
@@ -342,16 +414,20 @@ Content-Type: application/json
   "nft_mint": null,
   "transaction_signature": "5xXxX..."
 }
+
 ```
 
 ### 护身符相关接口
 
-#### 获取待领取护身符
-```http
+### 获取待领取护身符
+
+```
 GET /api/amulet/user/{user_pubkey}/pending
+
 ```
 
 **响应：**
+
 ```json
 {
   "user_pubkey": "UserPubkey...",
@@ -366,14 +442,18 @@ GET /api/amulet/user/{user_pubkey}/pending
   ],
   "count": 1
 }
+
 ```
 
-#### 获取最近护身符掉落
-```http
+### 获取最近护身符掉落
+
+```
 GET /api/amulet/user/{user_pubkey}/recent-drop
+
 ```
 
 **响应：**
+
 ```json
 {
   "user_pubkey": "UserPubkey...",
@@ -386,19 +466,73 @@ GET /api/amulet/user/{user_pubkey}/recent-drop
     "time_since_drop_seconds": 3600
   }
 }
+
+```
+
+### 个人信息相关接口
+
+#### 获取用户完整资料
+
+```
+GET /api/profile/{user_pubkey}
+
+```
+
+**响应：**
+
+```json
+{
+  "user_pubkey": "UserPubkey...",
+  "merit_points": 1520,
+  "incense_points": 0,
+  "rank": "供奉",
+  "joined_date": "2025-01-01T00:00:00Z",
+  "stats": {
+    "total_incense_burned": 45,
+    "total_fortunes_drawn": 23,
+    "total_wishes_made": 12,
+    "total_donated_sol": 1.5
+  },
+  "nfts": {
+    "amulet_count": 0,
+    "fortune_nft_count": 0,
+    "buddha_nft_count": 0
+  },
+  "recent_activity": [
+    {
+      "activity_type": "incense_burn",
+      "description": "Burned Supreme Incense",
+      "merit_gained": 30,
+      "created_at": "2025-01-01T12:00:00Z"
+    }
+  ],
+  "achievements": [
+    {
+      "title": "First Incense",
+      "description": "Burned your first incense",
+      "unlocked": true,
+      "unlocked_at": "2025-01-01T10:00:00Z"
+    }
+  ]
+}
+
 ```
 
 ## 排行榜接口
 
 ### 香火排行榜
-```http
+
+```
 GET /api/incense/leaderboard?period=all
+
 ```
 
 **查询参数：**
+
 - `period`: 时间周期 (all, daily, weekly, monthly)
 
 **响应：**
+
 ```json
 {
   "period": "all",
@@ -412,14 +546,18 @@ GET /api/incense/leaderboard?period=all
   ],
   "count": 100
 }
+
 ```
 
 ### 捐赠排行榜
-```http
+
+```
 GET /api/donation/leaderboard?limit=100&offset=0
+
 ```
 
 **响应：**
+
 ```json
 {
   "leaderboard": [
@@ -435,6 +573,7 @@ GET /api/donation/leaderboard?limit=100&offset=0
     "count": 100
   }
 }
+
 ```
 
 ## 错误响应
@@ -445,9 +584,11 @@ GET /api/donation/leaderboard?limit=100&offset=0
 {
   "error": "Error description"
 }
+
 ```
 
 常见状态码：
+
 - `400` - 请求参数错误
 - `500` - 服务器内部错误
 
@@ -455,11 +596,11 @@ GET /api/donation/leaderboard?limit=100&offset=0
 
 ### JavaScript/TypeScript 客户端示例
 
-```typescript
+```tsx
 class SoljiIndexerClient {
   private baseUrl: string;
 
-  constructor(baseUrl = 'http://localhost:3001') {
+  constructor(baseUrl = '<http://localhost:3001>') {
     this.baseUrl = baseUrl;
   }
 
@@ -499,19 +640,5 @@ class SoljiIndexerClient {
 const client = new SoljiIndexerClient();
 const stats = await client.getTempleStats();
 console.log('Temple level:', stats.level);
+
 ```
-
-## 注意事项
-
-1. **分页限制**：排行榜和列表接口都有最大限制，请注意分页处理
-2. **数据一致性**：数据来源于区块链事件索引，确保数据的实时性
-3. **错误处理**：前端需要处理各种错误情况，包括网络错误和服务器错误
-4. **缓存策略**：建议对一些静态数据（如香火类型、捐赠等级）进行适当缓存
-5. **实时更新**：排行榜数据会定期更新，不是实时数据
-
-## 部署说明
-
-- 默认运行端口：3001
-- 支持 Docker 部署（见 docker-compose.yml）
-- 数据库：PostgreSQL
-- 区块链连接：通过 RPC 节点获取事件数据

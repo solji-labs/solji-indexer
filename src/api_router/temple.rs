@@ -4,12 +4,16 @@ use axum::{extract::State, http::StatusCode, response::Json, routing::get, Route
 use serde_json::json;
 
 use super::AppState;
-use crate::db::{get_aggregated_global_stats, models::GlobalStats};
+use crate::db::{
+    get_aggregated_global_stats, get_recent_activities as db_get_recent_activities,
+    models::GlobalStats,
+};
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/api/temple/level", get(get_temple_level))
         .route("/api/temple/stats", get(get_temple_stats))
+        .route("/api/temple/activities/recent", get(get_recent_activities))
         .with_state(state)
 }
 
@@ -246,5 +250,58 @@ fn get_temple_level_name_en(level: u8) -> &'static str {
         3 => "Temple of Spirit",
         4 => "Cyber Shrine",
         _ => "Unknown",
+    }
+}
+
+/// Get recent activities
+///
+/// Returns the most recent activities from all users in the temple
+#[utoipa::path(
+    get,
+    path = "/api/temple/activities/recent",
+    responses(
+        (status = 200, description = "Recent activities", body = serde_json::Value,
+            example = json!({
+                "activities": [
+                    {
+                        "user_pubkey": "0x7a3b...4f2c",
+                        "action": "burned incense",
+                        "created_at": "2025-01-01T12:00:00Z"
+                    },
+                    {
+                        "user_pubkey": "0x9d1e...8a6b",
+                        "action": "drew fortune",
+                        "created_at": "2025-01-01T11:45:00Z"
+                    }
+                ],
+                "count": 2
+            })
+        ),
+        (status = 500, description = "Database error")
+    ),
+    tag = "Temple"
+)]
+pub async fn get_recent_activities(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    match db_get_recent_activities(&state.db_pool, 5).await {
+        Ok(activities) => {
+            let count = activities.len();
+            let response = json!({
+                "activities": activities.into_iter().map(|activity| {
+                    json!({
+                        "user_pubkey": format!("{}...{}", &activity.user_pubkey[..6], &activity.user_pubkey[activity.user_pubkey.len().saturating_sub(4)..]),
+                        "action": activity.action,
+                        "created_at": activity.created_at.to_rfc3339()
+                    })
+                }).collect::<Vec<_>>(),
+                "count": count
+            });
+            Ok(Json(response))
+        }
+        Err(e) => {
+            eprintln!("Database error getting recent activities: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }

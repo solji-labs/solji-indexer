@@ -382,7 +382,13 @@ async fn handle_fortune_drawn(
     // 2. Update user state (increment fortune draws count)
     crate::db::increment_user_fortune_draws(&pool, &user_str, created_at).await?;
 
-    // 3. Global stats removed - data now aggregated from individual tables
+    // 3. Update user state with merit reward for drawing fortune (+2 merit per product docs)
+    crate::db::upsert_user_state_by_donation(
+        pool, &user_str, 2, // +2 merit for drawing fortune
+        0, // no incense points
+        0, // no donation amount
+    )
+    .await?;
 
     Ok(())
 }
@@ -420,9 +426,16 @@ async fn handle_wish_created(
     )
     .await?;
 
-    // 2. Update user state (increment wish count) - removed since function was deleted
+    // 2. Update user state with merit reward for making a wish (+1 merit per product docs)
+    crate::db::upsert_user_state_by_donation(
+        pool, &user_str, 1, // +1 merit for making a wish
+        0, // no incense points
+        0, // no donation amount
+    )
+    .await?;
 
-    // 3. Global stats removed - data now aggregated from individual tables
+    // 3. Increment user wish count
+    crate::db::increment_user_wish_count(&pool, &user_str, created_at).await?;
 
     Ok(())
 }

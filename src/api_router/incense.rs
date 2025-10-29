@@ -64,7 +64,7 @@ pub async fn get_incense_types() -> Result<Json<serde_json::Value>, StatusCode> 
         IncenseTypeInfo {
             id: "basic".to_string(),
             name: "清香".to_string(),
-            name_en: "Basic Incense".to_string(),
+            name_en: "Clear Incense".to_string(),
             price: 0.01,
             merit_points: 1,
             description: "Simple and pure, for daily devotion".to_string(),
@@ -84,9 +84,9 @@ pub async fn get_incense_types() -> Result<Json<serde_json::Value>, StatusCode> 
         IncenseTypeInfo {
             id: "dragon".to_string(),
             name: "龙香".to_string(),
-            name_en: "Dragon Incense".to_string(),
+            name_en: "Ambergris Incense".to_string(),
             price: 0.1,
-            merit_points: 10,
+            merit_points: 1200,
             description: "Rare dragon incense for great fortune".to_string(),
             image: "/mystical-dragon-incense-with-purple-smoke.jpg".to_string(),
             daily_limit: 10,
@@ -94,9 +94,9 @@ pub async fn get_incense_types() -> Result<Json<serde_json::Value>, StatusCode> 
         IncenseTypeInfo {
             id: "supreme".to_string(),
             name: "至尊香".to_string(),
-            name_en: "Supreme Incense".to_string(),
+            name_en: "Supreme Spirit Incense".to_string(),
             price: 0.3,
-            merit_points: 30,
+            merit_points: 3400,
             description: "The ultimate offering for enlightenment".to_string(),
             image: "/supreme-golden-incense-with-rainbow-aura.jpg".to_string(),
             daily_limit: 10,

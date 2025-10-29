@@ -15,6 +15,7 @@ pub mod fortune;
 pub mod health;
 pub mod incense;
 pub mod models;
+pub mod profile;
 pub mod stats;
 pub mod temple;
 pub mod wishes;
@@ -45,6 +46,8 @@ pub fn create_router(state: AppState) -> Router {
         .merge(amulet::routes(state.clone()))
         // Fortune
         .merge(fortune::routes(state.clone()))
+        // Profile
+        .merge(profile::routes(state.clone()))
 }
 
 /// OpenAPI 文档汇总
@@ -69,6 +72,7 @@ pub fn create_router(state: AppState) -> Router {
         // Temple
         temple::get_temple_level,
         temple::get_temple_stats,
+        temple::get_recent_activities,
 
         // Incense
         incense::get_incense_types,
@@ -105,6 +109,12 @@ pub fn create_router(state: AppState) -> Router {
         fortune::get_user_fortune_history_handler,
         fortune::get_user_fortune_nft_mints_handler,
         fortune::get_user_fortune_stats_handler,
+
+        // Profile
+        profile::get_profile_basic,
+        profile::get_profile_activities,
+        profile::get_profile_achievements,
+        profile::get_profile_nfts,
     ),
     components(
         schemas(
@@ -124,6 +134,7 @@ pub fn create_router(state: AppState) -> Router {
         (name = "Donation", description = "Donation and merit system"),
         (name = "Amulet", description = "Amulet NFT management"),
         (name = "Fortune", description = "Fortune drawing and statistics"),
+        (name = "Profile", description = "User profile and statistics"),
         (name = "Admin", description = "Administrative endpoints"),
     )
 )]

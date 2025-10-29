@@ -96,6 +96,11 @@ pub struct Wish {
 pub struct UserState {
     pub id: i32,
     pub user_pubkey: String,
+    pub merit: i64,
+    pub incense_points: i64,
+    pub total_donation_amount: i64, // BigInt
+    pub total_wish_count: i32,
+    pub total_fortune_draws: i32,
     pub pending_random_request_id: Option<String>,
     pub pending_amulets: i32,
     pub created_at: DateTime<Utc>,
@@ -223,4 +228,60 @@ impl From<GlobalStats> for GlobalStatsResponse {
             updated_at: stats.updated_at,
         }
     }
+}
+
+// UserProfile - aggregated user data for profile page
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserProfile {
+    pub user_pubkey: String,
+    pub merit_points: i64,
+    pub incense_points: i64,
+    pub rank: String,
+    pub joined_date: Option<DateTime<Utc>>,
+    pub stats: UserProfileStats,
+    pub nfts: UserProfileNFTs,
+    pub recent_activity: Vec<UserActivity>,
+    pub achievements: Vec<UserAchievement>,
+}
+
+// UserProfileBasic - basic profile data from user_states table only
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserProfileBasic {
+    pub user_pubkey: String,
+    pub merit_points: i64,
+    pub incense_points: i64,
+    pub rank: String,
+    pub joined_date: Option<DateTime<Utc>>,
+    pub stats: UserProfileStats,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserProfileStats {
+    pub total_incense_burned: i32,
+    pub total_fortunes_drawn: i32,
+    pub total_wishes_made: i32,
+    pub total_donated_sol: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserProfileNFTs {
+    pub amulet_count: i32,
+    pub fortune_nft_count: i32,
+    pub buddha_nft_count: i32, // Placeholder for future Buddha NFTs
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserActivity {
+    pub activity_type: String, // "incense_burn", "fortune_draw", "wish_made", "donation"
+    pub description: String,
+    pub merit_gained: i64,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserAchievement {
+    pub title: String,
+    pub description: String,
+    pub unlocked: bool,
+    pub unlocked_at: Option<DateTime<Utc>>,
 }

@@ -1,7 +1,6 @@
 pub mod models;
 
 use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use sqlx::MySqlPool as SqlxMySqlPool;
 use std::sync::Arc;
@@ -878,6 +877,534 @@ pub async fn sync_shop_items(
     Ok(())
 }
 
+// ===== PROFILE-RELATED DATABASE FUNCTIONS =====
+
+/// Get user's basic profile data (from user_states table only)
+pub async fn get_user_profile_basic(
+    pool: &DbPool,
+    user_pubkey: &str,
+) -> Result<UserProfileBasic, sqlx::Error> {
+    println!(
+        "🔍 [PROFILE BASIC] Getting basic profile for user: {}",
+        user_pubkey
+    );
+
+    // Get user state for basic info
+    let user_state = sqlx::query_as::<_, UserState>(
+        r#"
+        SELECT
+            id,
+            user_pubkey,
+            merit,
+            incense_points,
+            total_donation_amount,
+            total_wish_count,
+            total_fortune_draws,
+            pending_random_request_id,
+            pending_amulets,
+            created_at,
+            updated_at
+        FROM user_states WHERE user_pubkey = ?
+        "#,
+    )
+    .bind(user_pubkey)
+    .fetch_optional(pool.as_ref())
+    .await?;
+    println!("✅ [PROFILE BASIC] user_states query completed");
+
+    // Calculate rank based on merit points (updated requirements)
+    let rank = if let Some(state) = &user_state {
+        if state.merit >= 500000 {
+            "寺主" // Temple Master: 500,000 merit
+        } else if state.merit >= 150000 {
+            "供奉" // Devotee: 150,000 merit
+        } else if state.merit >= 30000 {
+            "香客" // Pilgrim: 30,000 merit
+        } else if state.merit >= 5000 {
+            "居士" // Lay Buddhist: 5,000 merit
+        } else {
+            "信徒" // Believer: < 5,000 merit
+        }
+    } else {
+        "信徒"
+    };
+
+    let total_donated_sol = if let Some(state) = &user_state {
+        // Convert lamports to SOL
+        state.total_donation_amount as f64 / 1_000_000_000.0
+    } else {
+        0.0
+    };
+
+    Ok(UserProfileBasic {
+        user_pubkey: user_pubkey.to_string(),
+        merit_points: user_state.as_ref().map(|s| s.merit).unwrap_or(0),
+        incense_points: user_state.as_ref().map(|s| s.incense_points).unwrap_or(0),
+        rank: rank.to_string(),
+        joined_date: user_state.as_ref().map(|s| s.created_at),
+        stats: UserProfileStats {
+            total_incense_burned: 0, // Will be calculated separately
+            total_fortunes_drawn: user_state
+                .as_ref()
+                .map(|s| s.total_fortune_draws)
+                .unwrap_or(0) as i32,
+            total_wishes_made: user_state.as_ref().map(|s| s.total_wish_count).unwrap_or(0) as i32,
+            total_donated_sol,
+        },
+    })
+}
+
+/// Get user's activity history
+pub async fn get_user_profile_activities(
+    pool: &DbPool,
+    user_pubkey: &str,
+) -> Result<Vec<UserActivity>, sqlx::Error> {
+    println!(
+        "🔍 [PROFILE ACTIVITIES] Getting activities for user: {}",
+        user_pubkey
+    );
+
+    let mut recent_activity = Vec::new();
+
+    // Incense burns
+    let incense_activity = sqlx::query_as::<_, (String, i64, DateTime<Utc>)>(
+        r#"
+        SELECT 'Burned Incense', merit_gained, created_at
+        FROM incense_burn_history
+        WHERE user_pubkey = ?
+        ORDER BY created_at DESC
+        LIMIT 3
+        "#,
+    )
+    .bind(user_pubkey)
+    .fetch_all(pool.as_ref())
+    .await?;
+    println!("✅ [PROFILE ACTIVITIES] incense_burn_history query completed");
+
+    for (desc, merit, created_at) in incense_activity {
+        recent_activity.push(UserActivity {
+            activity_type: "incense_burn".to_string(),
+            description: desc,
+            merit_gained: merit,
+            created_at,
+        });
+    }
+
+    // Fortune draws - use count instead of merit cost
+    let fortune_activity = sqlx::query_as::<_, (String, DateTime<Utc>)>(
+        r#"
+        SELECT 'Drew Fortune', created_at
+        FROM fortune_draw_history
+        WHERE user_pubkey = ?
+        ORDER BY created_at DESC
+        LIMIT 3
+        "#,
+    )
+    .bind(user_pubkey)
+    .fetch_all(pool.as_ref())
+    .await?;
+    println!("✅ [PROFILE ACTIVITIES] fortune_draw_history query completed");
+
+    for (desc, created_at) in fortune_activity {
+        recent_activity.push(UserActivity {
+            activity_type: "fortune_draw".to_string(),
+            description: desc,
+            merit_gained: 2, // Fortune draw gives 2 merit points
+            created_at,
+        });
+    }
+
+    // Wishes - use count instead of merit cost
+    let wish_activity = sqlx::query_as::<_, (String, DateTime<Utc>)>(
+        r#"
+        SELECT 'Made a Wish', created_at
+        FROM wishes
+        WHERE user_pubkey = ?
+        ORDER BY created_at DESC
+        LIMIT 2
+        "#,
+    )
+    .bind(user_pubkey)
+    .fetch_all(pool.as_ref())
+    .await?;
+    println!("✅ [PROFILE ACTIVITIES] wishes query completed");
+
+    for (desc, created_at) in wish_activity {
+        recent_activity.push(UserActivity {
+            activity_type: "wish_made".to_string(),
+            description: desc,
+            merit_gained: 1, // Count of activities, not merit cost
+            created_at,
+        });
+    }
+
+    // 1. 定义一个结构体来安全地接收数据
+    #[derive(sqlx::FromRow)]
+    struct DonationRecord {
+        amount: f64, // 现在可以安全使用 f64
+        merit_gained: i32,
+        created_at: DateTime<Utc>,
+    }
+
+    // 2. 执行查询 (以 MySQL 为例)
+    let donation_records = sqlx::query_as::<_, DonationRecord>(
+        r#"
+    SELECT CAST(amount AS DOUBLE) as amount, merit_gained, created_at
+    FROM donation_history
+    WHERE user_pubkey = ?
+    ORDER BY created_at DESC
+    LIMIT 2
+    "#,
+    )
+    .bind(user_pubkey)
+    .fetch_all(pool.as_ref())
+    .await?;
+    println!("✅ [PROFILE ACTIVITIES] donation_history query completed");
+
+    // 3. 处理数据
+    let donation_activity: Vec<(String, i32, DateTime<Utc>)> = donation_records
+        .into_iter()
+        .map(|record| {
+            (
+                // 直接使用 record.amount (f64)
+                format!("Donated {:.3} SOL", record.amount),
+                record.merit_gained,
+                record.created_at,
+            )
+        })
+        .collect();
+
+    for (desc, merit, created_at) in donation_activity {
+        recent_activity.push(UserActivity {
+            activity_type: "donation".to_string(),
+            description: desc,
+            merit_gained: merit as i64,
+            created_at,
+        });
+    }
+
+    // Sort activity by date
+    recent_activity.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    recent_activity.truncate(10);
+
+    Ok(recent_activity)
+}
+
+/// Get user's achievements
+pub async fn get_user_profile_achievements(
+    pool: &DbPool,
+    user_pubkey: &str,
+) -> Result<Vec<UserAchievement>, sqlx::Error> {
+    println!(
+        "🔍 [PROFILE ACHIEVEMENTS] Getting achievements for user: {}",
+        user_pubkey
+    );
+
+    // Get user state for achievement calculations
+    let user_state = sqlx::query_as::<_, UserState>(
+        r#"
+        SELECT
+            id,
+            user_pubkey,
+            merit,
+            incense_points,
+            total_donation_amount,
+            total_wish_count,
+            total_fortune_draws,
+            pending_random_request_id,
+            pending_amulets,
+            created_at,
+            updated_at
+        FROM user_states WHERE user_pubkey = ?
+        "#,
+    )
+    .bind(user_pubkey)
+    .fetch_optional(pool.as_ref())
+    .await?;
+    println!("✅ [PROFILE ACHIEVEMENTS] user_states query completed");
+
+    // Calculate stats (only incense burn count, others come from user_states)
+    let total_incense_burned = {
+        // Query all incense burn records and sum in Rust code
+        let incense_records = sqlx::query_scalar::<_, i32>(
+            "SELECT incense_amount FROM incense_burn_history WHERE user_pubkey = ?",
+        )
+        .bind(user_pubkey)
+        .fetch_all(pool.as_ref())
+        .await?;
+        incense_records.iter().fold(0i32, |acc, &x| acc + x)
+    };
+    println!("✅ [PROFILE ACHIEVEMENTS] incense_burn_history query completed");
+
+    // Get donation info from user_donations table for donation_count
+    let donation_info = sqlx::query_as::<_, (i32,)>(
+        "SELECT donation_count FROM user_donations WHERE user_pubkey = ?",
+    )
+    .bind(user_pubkey)
+    .fetch_optional(pool.as_ref())
+    .await?;
+    println!("✅ [PROFILE ACHIEVEMENTS] donation_count query completed");
+
+    let mut achievements = Vec::new();
+
+    // First incense achievement
+    let has_burned_incense = total_incense_burned > 0;
+    achievements.push(UserAchievement {
+        title: "First Incense".to_string(),
+        description: "Burned your first incense".to_string(),
+        unlocked: has_burned_incense,
+        unlocked_at: if has_burned_incense {
+            sqlx::query_scalar::<_, DateTime<Utc>>(
+                "SELECT created_at FROM incense_burn_history WHERE user_pubkey = ? ORDER BY created_at ASC LIMIT 1",
+            )
+            .bind(user_pubkey)
+            .fetch_optional(pool.as_ref())
+            .await?
+        } else {
+            None
+        },
+    });
+
+    // Fortune seeker achievement
+    let has_drawn_fortunes = user_state
+        .as_ref()
+        .map(|s| s.total_fortune_draws >= 10)
+        .unwrap_or(false);
+    achievements.push(UserAchievement {
+        title: "Fortune Seeker".to_string(),
+        description: "Drew 10 fortunes".to_string(),
+        unlocked: has_drawn_fortunes,
+        unlocked_at: if has_drawn_fortunes {
+            sqlx::query_scalar::<_, DateTime<Utc>>(
+                "SELECT created_at FROM fortune_draw_history WHERE user_pubkey = ? ORDER BY created_at ASC LIMIT 1 OFFSET 9",
+            )
+            .bind(user_pubkey)
+            .fetch_optional(pool.as_ref())
+            .await?
+        } else {
+            None
+        },
+    });
+
+    // Wish master achievement
+    let has_made_wishes = user_state
+        .as_ref()
+        .map(|s| s.total_wish_count >= 10)
+        .unwrap_or(false);
+    achievements.push(UserAchievement {
+        title: "Wish Master".to_string(),
+        description: "Made 10 wishes".to_string(),
+        unlocked: has_made_wishes,
+        unlocked_at: if has_made_wishes {
+            sqlx::query_scalar::<_, DateTime<Utc>>(
+                "SELECT created_at FROM wishes WHERE user_pubkey = ? ORDER BY created_at ASC LIMIT 1 OFFSET 9",
+            )
+            .bind(user_pubkey)
+            .fetch_optional(pool.as_ref())
+            .await?
+        } else {
+            None
+        },
+    });
+
+    // Temple supporter achievement
+    let has_donated = donation_info.is_some();
+    achievements.push(UserAchievement {
+        title: "Temple Supporter".to_string(),
+        description: "Donated to the temple".to_string(),
+        unlocked: has_donated,
+        unlocked_at: if has_donated {
+            sqlx::query_scalar::<_, DateTime<Utc>>(
+                "SELECT created_at FROM donation_history WHERE user_pubkey = ? ORDER BY created_at ASC LIMIT 1",
+            )
+            .bind(user_pubkey)
+            .fetch_optional(pool.as_ref())
+            .await?
+        } else {
+            None
+        },
+    });
+
+    // Devotee achievement
+    let is_devotee = if let Some(state) = &user_state {
+        state.merit >= 1300
+    } else {
+        false
+    };
+    achievements.push(UserAchievement {
+        title: "Devotee".to_string(),
+        description: "Reach Devotee rank".to_string(),
+        unlocked: is_devotee,
+        unlocked_at: if is_devotee {
+            user_state.as_ref().map(|s| s.created_at)
+        } else {
+            None
+        },
+    });
+
+    // Temple master achievement
+    let is_temple_master = if let Some(state) = &user_state {
+        state.merit >= 14000
+    } else {
+        false
+    };
+    achievements.push(UserAchievement {
+        title: "Temple Master".to_string(),
+        description: "Reach Temple Master rank".to_string(),
+        unlocked: is_temple_master,
+        unlocked_at: if is_temple_master {
+            user_state.as_ref().map(|s| s.created_at)
+        } else {
+            None
+        },
+    });
+
+    Ok(achievements)
+}
+
+/// Get user's NFT statistics
+pub async fn get_user_profile_nfts(
+    pool: &DbPool,
+    user_pubkey: &str,
+) -> Result<UserProfileNFTs, sqlx::Error> {
+    println!(
+        "🔍 [PROFILE NFTS] Getting NFT stats for user: {}",
+        user_pubkey
+    );
+
+    // NFT counts
+    let amulet_count = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM amulet_mint_history WHERE user_pubkey = ?",
+    )
+    .bind(user_pubkey)
+    .fetch_one(pool.as_ref())
+    .await?;
+    println!("✅ [PROFILE NFTS] amulet_mint_history query completed");
+
+    let fortune_nft_count = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM fortune_nft_mint_history WHERE user_pubkey = ?",
+    )
+    .bind(user_pubkey)
+    .fetch_one(pool.as_ref())
+    .await?;
+    println!("✅ [PROFILE NFTS] fortune_nft_mint_history query completed");
+
+    Ok(UserProfileNFTs {
+        amulet_count: amulet_count as i32,
+        fortune_nft_count: fortune_nft_count as i32,
+        buddha_nft_count: 0, // Placeholder
+    })
+}
+
+// ===== RECENT ACTIVITIES DATABASE FUNCTIONS =====
+
+/// Recent activity entry for temple homepage
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct RecentActivity {
+    pub user_pubkey: String,
+    pub action: String,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Get recent activities from all tables (last 10 activities)
+pub async fn get_recent_activities(
+    pool: &DbPool,
+    limit: i32,
+) -> Result<Vec<RecentActivity>, sqlx::Error> {
+    // Get recent incense burns
+    let incense_activities = sqlx::query_as::<_, (String, String, DateTime<Utc>)>(
+        r#"
+        SELECT user_pubkey, CONCAT('burned incense'), created_at
+        FROM incense_burn_history
+        ORDER BY created_at DESC
+        LIMIT ?
+        "#,
+    )
+    .bind(limit)
+    .fetch_all(pool.as_ref())
+    .await?;
+
+    // Get recent fortune draws
+    let fortune_activities = sqlx::query_as::<_, (String, String, DateTime<Utc>)>(
+        r#"
+        SELECT user_pubkey, CONCAT('drew fortune'), created_at
+        FROM fortune_draw_history
+        ORDER BY created_at DESC
+        LIMIT ?
+        "#,
+    )
+    .bind(limit)
+    .fetch_all(pool.as_ref())
+    .await?;
+
+    // Get recent wishes
+    let wish_activities = sqlx::query_as::<_, (String, String, DateTime<Utc>)>(
+        r#"
+        SELECT user_pubkey, CONCAT('made a wish'), created_at
+        FROM wishes
+        ORDER BY created_at DESC
+        LIMIT ?
+        "#,
+    )
+    .bind(limit)
+    .fetch_all(pool.as_ref())
+    .await?;
+
+    // Get recent donations
+    let donation_activities = sqlx::query_as::<_, (String, String, DateTime<Utc>)>(
+        r#"
+        SELECT user_pubkey, CONCAT('donated ', FORMAT(amount, 1), ' SOL'), created_at
+        FROM donation_history
+        ORDER BY created_at DESC
+        LIMIT ?
+        "#,
+    )
+    .bind(limit)
+    .fetch_all(pool.as_ref())
+    .await?;
+
+    // Combine all activities
+    let mut all_activities = Vec::new();
+
+    for (user_pubkey, action, created_at) in incense_activities {
+        all_activities.push(RecentActivity {
+            user_pubkey,
+            action,
+            created_at,
+        });
+    }
+
+    for (user_pubkey, action, created_at) in fortune_activities {
+        all_activities.push(RecentActivity {
+            user_pubkey,
+            action,
+            created_at,
+        });
+    }
+
+    for (user_pubkey, action, created_at) in wish_activities {
+        all_activities.push(RecentActivity {
+            user_pubkey,
+            action,
+            created_at,
+        });
+    }
+
+    for (user_pubkey, action, created_at) in donation_activities {
+        all_activities.push(RecentActivity {
+            user_pubkey,
+            action,
+            created_at,
+        });
+    }
+
+    // Sort by created_at descending and take the most recent ones
+    all_activities.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    all_activities.truncate(limit as usize);
+
+    Ok(all_activities)
+}
+
 /// get donation leaderboard data directly from user_donations table
 pub async fn get_donation_leaderboard(
     pool: &DbPool,
@@ -1220,6 +1747,30 @@ pub async fn increment_user_fortune_draws(
         ) VALUES (?, 1, ?, NOW())
         ON DUPLICATE KEY UPDATE
             total_fortune_draws = total_fortune_draws + 1,
+            updated_at = VALUES(updated_at)
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(updated_at)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// increment user wish count
+pub async fn increment_user_wish_count(
+    pool: &DbPool,
+    user_pubkey: &str,
+    updated_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO user_states (
+            user_pubkey, total_wish_count, updated_at, created_at
+        ) VALUES (?, 1, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+            total_wish_count = total_wish_count + 1,
             updated_at = VALUES(updated_at)
         "#,
     )
