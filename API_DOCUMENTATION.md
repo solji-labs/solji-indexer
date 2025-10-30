@@ -46,6 +46,12 @@ swagger : [http://185.234.74.185:8091/swagger-ui/](http://185.234.74.185:8091/sw
 - `GET /api/amulet/user/{user_pubkey}/recent-drop` - 获取用户最近护身符掉落
 - `GET /api/amulet/user/{user_pubkey}/owned` - 获取用户拥有的护身符
 
+### IPFS 相关接口
+
+- `POST /api/ipfs/upload` - 上传内容到 IPFS
+- `GET /api/ipfs/{hash}` - 通过哈希获取 IPFS 内容
+- `POST /api/ipfs/batch` - 批量获取多个 IPFS 内容
+
 ### 个人信息相关接口
 
 - `GET /api/profile/{user_pubkey}/basic` - 获取用户基本信息
@@ -470,6 +476,103 @@ GET /api/amulet/user/{user_pubkey}/recent-drop
 
 ```
 
+### IPFS 相关接口
+
+### 上传内容到 IPFS
+
+```
+POST /api/ipfs/upload
+Content-Type: application/json
+
+{
+  "content": "要上传到 IPFS 的文本内容"
+}
+
+```
+
+**请求参数：**
+
+- `content`: 要上传的文本内容 (必需，最大 1MB)
+
+**响应：**
+
+```json
+{
+  "hash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "url": "https://solji.mypinata.cloud/ipfs/QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "size": 1024
+}
+
+```
+
+### 通过哈希获取 IPFS 内容
+
+```
+GET /api/ipfs/{hash}
+
+```
+
+**路径参数：**
+
+- `hash`: IPFS 内容哈希/CID
+
+**响应：**
+
+```json
+{
+  "hash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "content": "存储在 IPFS 上的内容",
+  "content_type": "text/plain",
+  "size": 1024,
+  "gateway_url": "https://solji.mypinata.cloud/ipfs/QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+}
+
+```
+
+### 批量获取多个 IPFS 内容
+
+```
+POST /api/ipfs/batch
+Content-Type: application/json
+
+{
+  "hashes": [
+    "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "QmYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"
+  ]
+}
+
+```
+
+**请求参数：**
+
+- `hashes`: IPFS 哈希数组 (必需，最多 50 个)
+
+**响应：**
+
+```json
+{
+  "contents": [
+    {
+      "hash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      "content": "第一个文件的内容",
+      "content_type": "text/plain",
+      "size": 1024,
+      "gateway_url": "https://solji.mypinata.cloud/ipfs/QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+    },
+    {
+      "hash": "QmYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY",
+      "content": "第二个文件的内容",
+      "content_type": "application/json",
+      "size": 2048,
+      "gateway_url": "https://solji.mypinata.cloud/ipfs/QmYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"
+    }
+  ],
+  "errors": []
+}
+
+```
+
 ### 个人信息相关接口
 
 #### 获取用户基本信息
@@ -723,6 +826,33 @@ class SoljiIndexerClient {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(donation)
+    });
+    return response.json();
+  }
+
+  async uploadToIPFS(content: string) {
+    const response = await fetch(`${this.baseUrl}/api/ipfs/upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content })
+    });
+    return response.json();
+  }
+
+  async getIPFSContent(hash: string) {
+    const response = await fetch(`${this.baseUrl}/api/ipfs/${hash}`);
+    return response.json();
+  }
+
+  async getIPFSBatchContent(hashes: string[]) {
+    const response = await fetch(`${this.baseUrl}/api/ipfs/batch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ hashes })
     });
     return response.json();
   }

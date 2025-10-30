@@ -21,8 +21,14 @@ RUN rm -rf src
 COPY . .
 
 # 4. Final build (use default dynamic linking target)
-RUN cargo build --release
+RUN rm -rf target/release/solji-indexer target/release/deps/solji_indexer* && \
+    cargo build --release --locked
 
+RUN ls -lh target/release/solji-indexer && \
+    SIZE=$(stat -c%s target/release/solji-indexer) && \
+    if [ $SIZE -lt 1000000 ]; then \
+    echo "ERROR: Binary too small ($SIZE bytes)" && exit 1; \
+    fi
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y \

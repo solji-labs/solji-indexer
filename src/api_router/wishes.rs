@@ -17,6 +17,163 @@ use crate::db::{
     get_user_wishes as db_get_user_wishes, get_wishes as db_get_wishes, like_wish_by_id,
 };
 
+// Helper function to retrieve IPFS content for wishes
+async fn get_wishes_with_ipfs_content(
+    wishes: Vec<crate::db::models::Wish>,
+    state: &AppState,
+) -> Vec<serde_json::Value> {
+    // Extract IPFS hashes for batch retrieval
+    let ipfs_hashes: Vec<String> = wishes
+        .iter()
+        .filter_map(|w| {
+            // Assuming content field now contains IPFS hash
+            if !w.content.is_empty() && w.content.starts_with("Qm") {
+                Some(w.content.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Get content from IPFS if we have hashes - inline batch logic
+    let ipfs_contents = if !ipfs_hashes.is_empty() {
+        // Create futures for concurrent requests using ureq
+        let futures = ipfs_hashes.into_iter().map(|hash| {
+            let gateway_url = format!("{}/{}", state.config.pinata_gateway, hash);
+            async move {
+                let hash_for_result = hash.clone();
+                let gateway_url_for_result = gateway_url.clone();
+
+                // Use spawn_blocking for ureq synchronous calls
+                match tokio::task::spawn_blocking(move || {
+                    let agent = ureq::Agent::new();
+
+                    match agent
+                        .get(&gateway_url)
+                        .timeout(std::time::Duration::from_secs(30))
+                        .call()
+                    {
+                        Ok(resp) => {
+                            if resp.status() == 200 {
+                                // Get content type from headers
+                                let content_type = resp
+                                    .header("content-type")
+                                    .unwrap_or("application/octet-stream")
+                                    .to_string();
+
+                                // Get response body
+                                use std::io::Read;
+                                let mut reader = resp.into_reader();
+                                let mut bytes = Vec::new();
+                                match reader.read_to_end(&mut bytes) {
+                                    Ok(_) => Ok((content_type, bytes)),
+                                    Err(e) => {
+                                        println!(
+                                            " [IPFS] Failed to read body for {}: {:?}",
+                                            hash, e
+                                        );
+                                        Err((hash, format!("Body read error: {:?}", e)))
+                                    }
+                                }
+                            } else {
+                                println!(" [IPFS] Gateway returned {} for {}", resp.status(), hash);
+                                Err((hash, format!("HTTP {}", resp.status())))
+                            }
+                        }
+                        Err(e) => {
+                            println!(" [IPFS] Failed to fetch {}: {:?}", hash, e);
+                            Err((hash, format!("Network error: {:?}", e)))
+                        }
+                    }
+                })
+                .await
+                {
+                    Ok(Ok((content_type, content_bytes))) => {
+                        // Parse content
+                        let content = if content_type.contains("application/json") {
+                            match serde_json::from_slice(&content_bytes) {
+                                Ok(json_value) => json_value,
+                                Err(_) => serde_json::Value::String(
+                                    String::from_utf8_lossy(&content_bytes).to_string(),
+                                ),
+                            }
+                        } else {
+                            serde_json::Value::String(
+                                String::from_utf8_lossy(&content_bytes).to_string(),
+                            )
+                        };
+
+                        println!(
+                            " [IPFS] Retrieved {} ({} bytes)",
+                            hash_for_result,
+                            content_bytes.len()
+                        );
+
+                        Ok(json!({
+                            "hash": hash_for_result,
+                            "content": content,
+                            "content_type": content_type,
+                            "size": content_bytes.len(),
+                            "gateway_url": gateway_url_for_result
+                        }))
+                    }
+                    Ok(Err((hash, error))) => Err((hash, error)),
+                    Err(e) => {
+                        println!(" [IPFS] Task join error for {}: {:?}", hash_for_result, e);
+                        Err((hash_for_result, format!("Task error: {:?}", e)))
+                    }
+                }
+            }
+        });
+
+        // Execute all requests concurrently
+        match futures::future::join_all(futures)
+            .await
+            .into_iter()
+            .filter_map(|result| match result {
+                Ok(content) => {
+                    if let (Some(hash), Some(content_val)) = (
+                        content.get("hash").and_then(|h| h.as_str()),
+                        content.get("content"),
+                    ) {
+                        Some((hash.to_string(), content_val.clone()))
+                    } else {
+                        None
+                    }
+                }
+                Err(_) => None,
+            })
+            .collect::<std::collections::HashMap<String, serde_json::Value>>()
+        {
+            contents => contents,
+        }
+    } else {
+        std::collections::HashMap::new()
+    };
+
+    // Map wishes to JSON with IPFS content
+    wishes
+        .into_iter()
+        .map(|w| {
+            // Get content from IPFS or fallback to stored content
+            let content = if let Some(ipfs_content) = ipfs_contents.get(&w.content) {
+                ipfs_content.clone()
+            } else {
+                serde_json::Value::String(w.content.clone())
+            };
+
+            json!({
+                "id": w.id,
+                "wish_id": w.wish_id,
+                "user_pubkey": w.user_pubkey,
+                "content": content,
+                "likes": w.likes,
+                "created_at": w.created_at.to_rfc3339()
+            })
+        })
+        .collect()
+}
+
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/api/wishes", get(get_wishes))
@@ -83,20 +240,7 @@ pub async fn get_wishes(
 
     match db_get_wishes(&state.db_pool, limit, offset).await {
         Ok(wishes) => {
-            let wishes_data: Vec<_> = wishes
-                .into_iter()
-                .map(|w| {
-                    json!({
-                        "id": w.id,
-                        "wish_id": w.wish_id,
-                        "user_pubkey": w.user_pubkey,
-                        "content": w.content,
-                        "likes": w.likes,
-                        "created_at": w.created_at.to_rfc3339(),
-                        "updated_at": w.updated_at.to_rfc3339()
-                    })
-                })
-                .collect();
+            let wishes_data = get_wishes_with_ipfs_content(wishes, &state).await;
 
             Ok(Json(json!({
                 "wishes": wishes_data,
@@ -165,19 +309,7 @@ pub async fn get_public_wishes(
 
     match db_get_public_wishes(&state.db_pool, limit, offset).await {
         Ok(wishes) => {
-            let wishes_data: Vec<_> = wishes
-                .into_iter()
-                .map(|w| {
-                    json!({
-                        "id": w.id,
-                        "wish_id": w.wish_id,
-                        "user_pubkey": w.user_pubkey,
-                        "content": w.content,
-                        "likes": w.likes,
-                        "created_at": w.created_at.to_rfc3339()
-                    })
-                })
-                .collect();
+            let wishes_data = get_wishes_with_ipfs_content(wishes, &state).await;
 
             Ok(Json(json!({
                 "wishes": wishes_data,
@@ -240,19 +372,7 @@ pub async fn get_user_wishes(
 
     match db_get_user_wishes(&state.db_pool, &user_pubkey, limit, offset).await {
         Ok(wishes) => {
-            let wishes_data: Vec<_> = wishes
-                .into_iter()
-                .map(|w| {
-                    json!({
-                        "id": w.id,
-                        "wish_id": w.wish_id,
-                        "user_pubkey": w.user_pubkey,
-                        "content": w.content,
-                        "likes": w.likes,
-                        "created_at": w.created_at.to_rfc3339()
-                    })
-                })
-                .collect();
+            let wishes_data = get_wishes_with_ipfs_content(wishes, &state).await;
 
             Ok(Json(json!({
                 "user_pubkey": user_pubkey,
