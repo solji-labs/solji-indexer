@@ -122,6 +122,21 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
     .execute(pool.as_ref())
     .await?;
 
+    // Wish Likes table - tracks user likes on wishes
+    sqlx::query(
+        r#"CREATE TABLE IF NOT EXISTS wish_likes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            wish_id BIGINT NOT NULL,
+            user_pubkey VARCHAR(44) NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_user_wish_like (wish_id, user_pubkey),
+            INDEX idx_wish_id (wish_id),
+            INDEX idx_user_pubkey (user_pubkey)
+        )"#,
+    )
+    .execute(pool.as_ref())
+    .await?;
+
     // User States table
     sqlx::query(
         r#"CREATE TABLE IF NOT EXISTS user_states (
@@ -2006,19 +2021,30 @@ pub async fn get_user_wish_tower_stats(
 
 /// Like a wish (increment likes count)
 pub async fn like_wish_by_id(pool: &DbPool, wish_id: i64) -> Result<i32, sqlx::Error> {
-    // Update likes count and return new count
-    let result = sqlx::query_scalar::<_, i32>(
-        r#"
-        UPDATE wishes
-        SET likes = likes + 1, updated_at = NOW()
-        WHERE wish_id = ?
-        "#,
-    )
-    .bind(wish_id)
-    .fetch_one(pool.as_ref())
-    .await?;
+    // First check if wish exists and get current likes count
+    let current_likes = sqlx::query_scalar::<_, i32>("SELECT likes FROM wishes WHERE wish_id = ?")
+        .bind(wish_id)
+        .fetch_optional(pool.as_ref())
+        .await?;
 
-    Ok(result)
+    match current_likes {
+        Some(likes) => {
+            // Update likes count
+            sqlx::query(
+                r#"
+                UPDATE wishes
+                SET likes = likes + 1, updated_at = NOW()
+                WHERE wish_id = ?
+                "#,
+            )
+            .bind(wish_id)
+            .execute(pool.as_ref())
+            .await?;
+
+            Ok(likes + 1)
+        }
+        None => Err(sqlx::Error::RowNotFound),
+    }
 }
 
 /// Get public wishes (non-anonymous) with pagination
@@ -2054,6 +2080,145 @@ pub async fn get_wish_by_id(pool: &DbPool, wish_id: i64) -> Result<Option<Wish>,
     .bind(wish_id)
     .fetch_optional(pool.as_ref())
     .await
+}
+
+/// Insert wish like (user likes a wish)
+pub async fn insert_wish_like(
+    pool: &DbPool,
+    wish_id: i64,
+    user_pubkey: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO wish_likes (wish_id, user_pubkey)
+        VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE
+            created_at = created_at
+        "#,
+    )
+    .bind(wish_id)
+    .bind(user_pubkey)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
+}
+
+/// Check if user has liked a specific wish
+pub async fn check_user_liked_wish(
+    pool: &DbPool,
+    wish_id: i64,
+    user_pubkey: &str,
+) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT COUNT(*) FROM wish_likes
+        WHERE wish_id = ? AND user_pubkey = ?
+        "#,
+    )
+    .bind(wish_id)
+    .bind(user_pubkey)
+    .fetch_one(pool.as_ref())
+    .await?;
+
+    Ok(result > 0)
+}
+
+/// Get wishes with user like status (for authenticated users)
+pub async fn get_wishes_with_user_likes(
+    pool: &DbPool,
+    user_pubkey: Option<&str>,
+    limit: i32,
+    offset: i32,
+) -> Result<Vec<(Wish, bool)>, sqlx::Error> {
+    let wishes = get_wishes(pool, limit, offset).await?;
+
+    if let Some(user_pubkey) = user_pubkey {
+        // Get liked wish IDs for this user
+        let liked_wish_ids = sqlx::query_scalar::<_, i64>(
+            r#"
+            SELECT wish_id FROM wish_likes
+            WHERE user_pubkey = ?
+            "#,
+        )
+        .bind(user_pubkey)
+        .fetch_all(pool.as_ref())
+        .await?;
+
+        let liked_set: std::collections::HashSet<i64> = liked_wish_ids.into_iter().collect();
+
+        // Map wishes with like status
+        let wishes_with_likes = wishes
+            .into_iter()
+            .map(|wish| {
+                let is_liked = liked_set.contains(&wish.wish_id);
+                (wish, is_liked)
+            })
+            .collect();
+
+        Ok(wishes_with_likes)
+    } else {
+        // No user provided, all wishes are not liked
+        let wishes_with_likes = wishes.into_iter().map(|wish| (wish, false)).collect();
+
+        Ok(wishes_with_likes)
+    }
+}
+
+/// Get public wishes with user like status
+pub async fn get_public_wishes_with_user_likes(
+    pool: &DbPool,
+    user_pubkey: Option<&str>,
+    limit: i32,
+    offset: i32,
+) -> Result<Vec<(Wish, bool)>, sqlx::Error> {
+    let wishes = get_public_wishes(pool, limit, offset).await?;
+
+    if let Some(user_pubkey) = user_pubkey {
+        // Get liked wish IDs for this user
+        let liked_wish_ids = sqlx::query_scalar::<_, i64>(
+            r#"
+            SELECT wish_id FROM wish_likes
+            WHERE user_pubkey = ?
+            "#,
+        )
+        .bind(user_pubkey)
+        .fetch_all(pool.as_ref())
+        .await?;
+
+        let liked_set: std::collections::HashSet<i64> = liked_wish_ids.into_iter().collect();
+
+        // Map wishes with like status
+        let wishes_with_likes = wishes
+            .into_iter()
+            .map(|wish| {
+                let is_liked = liked_set.contains(&wish.wish_id);
+                (wish, is_liked)
+            })
+            .collect();
+
+        Ok(wishes_with_likes)
+    } else {
+        // No user provided, all wishes are not liked
+        let wishes_with_likes = wishes.into_iter().map(|wish| (wish, false)).collect();
+
+        Ok(wishes_with_likes)
+    }
+}
+
+/// Get user wishes with like status (always true for own wishes)
+pub async fn get_user_wishes_with_likes(
+    pool: &DbPool,
+    user_pubkey: &str,
+    limit: i32,
+    offset: i32,
+) -> Result<Vec<(Wish, bool)>, sqlx::Error> {
+    let wishes = get_user_wishes(pool, user_pubkey, limit, offset).await?;
+
+    // For user's own wishes, is_liked is always true
+    let wishes_with_likes = wishes.into_iter().map(|wish| (wish, true)).collect();
+
+    Ok(wishes_with_likes)
 }
 
 // ===== INCENSE-RELATED DATABASE FUNCTIONS =====

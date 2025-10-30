@@ -91,6 +91,15 @@ pub struct Wish {
     pub updated_at: DateTime<Utc>,
 }
 
+// WishLike - tracks user likes on wishes
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct WishLike {
+    pub id: i32,
+    pub wish_id: i64,
+    pub user_pubkey: String,
+    pub created_at: DateTime<Utc>,
+}
+
 // UserState
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct UserState {

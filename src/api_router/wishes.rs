@@ -1,7 +1,7 @@
 // src/api/wishes.rs
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::Json,
     routing::{get, post},
     Router,
@@ -11,17 +11,20 @@ use std::collections::HashMap;
 
 use super::AppState;
 use crate::db::{
-    get_public_wishes as db_get_public_wishes,
-    get_user_daily_wish_count as db_get_user_daily_wish_count,
+    check_user_liked_wish, get_public_wishes as db_get_public_wishes,
+    get_public_wishes_with_user_likes, get_user_daily_wish_count as db_get_user_daily_wish_count,
     get_user_wish_tower_stats as db_get_user_wish_tower_stats,
-    get_user_wishes as db_get_user_wishes, get_wishes as db_get_wishes, like_wish_by_id,
+    get_user_wishes as db_get_user_wishes, get_user_wishes_with_likes, get_wishes as db_get_wishes,
+    get_wishes_with_user_likes, insert_wish_like, like_wish_by_id,
 };
 
-// Helper function to retrieve IPFS content for wishes
-async fn get_wishes_with_ipfs_content(
-    wishes: Vec<crate::db::models::Wish>,
+// Helper function to retrieve IPFS content for wishes with like status from pairs
+async fn get_wishes_with_ipfs_content_and_likes_from_pairs(
+    wish_likes: Vec<(crate::db::models::Wish, bool)>,
     state: &AppState,
 ) -> Vec<serde_json::Value> {
+    let wishes: Vec<crate::db::models::Wish> = wish_likes.iter().map(|(w, _)| w.clone()).collect();
+
     // Extract IPFS hashes for batch retrieval
     let ipfs_hashes: Vec<String> = wishes
         .iter()
@@ -151,10 +154,10 @@ async fn get_wishes_with_ipfs_content(
         std::collections::HashMap::new()
     };
 
-    // Map wishes to JSON with IPFS content
-    wishes
+    // Map wishes with like status to JSON with IPFS content
+    wish_likes
         .into_iter()
-        .map(|w| {
+        .map(|(w, is_liked)| {
             // Get content from IPFS or fallback to stored content
             let content = if let Some(ipfs_content) = ipfs_contents.get(&w.content) {
                 ipfs_content.clone()
@@ -168,6 +171,7 @@ async fn get_wishes_with_ipfs_content(
                 "user_pubkey": w.user_pubkey,
                 "content": content,
                 "likes": w.likes,
+                "is_liked": is_liked,
                 "created_at": w.created_at.to_rfc3339()
             })
         })
@@ -208,8 +212,8 @@ pub fn routes(state: AppState) -> Router {
                         "user_pubkey": "5xot9PdcigoDgdXJYuSGKmHBhcQn3WHPh1EwLyBNxmNw",
                         "content": "May all beings be happy",
                         "likes": 42,
-                        "created_at": "2025-01-01T00:00:00Z",
-                        "updated_at": "2025-01-01T00:00:00Z"
+                        "is_liked": false,
+                        "created_at": "2025-01-01T00:00:00Z"
                     }
                 ],
                 "pagination": {
@@ -226,6 +230,7 @@ pub fn routes(state: AppState) -> Router {
 pub async fn get_wishes(
     State(state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let limit: i32 = params
         .get("limit")
@@ -237,10 +242,15 @@ pub async fn get_wishes(
         .and_then(|s| s.parse().ok())
         .unwrap_or(0)
         .max(0);
+    let user_pubkey = headers
+        .get("x-user-pubkey")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
 
-    match db_get_wishes(&state.db_pool, limit, offset).await {
-        Ok(wishes) => {
-            let wishes_data = get_wishes_with_ipfs_content(wishes, &state).await;
+    match get_wishes_with_user_likes(&state.db_pool, user_pubkey.as_deref(), limit, offset).await {
+        Ok(wish_likes) => {
+            let wishes_data =
+                get_wishes_with_ipfs_content_and_likes_from_pairs(wish_likes, &state).await;
 
             Ok(Json(json!({
                 "wishes": wishes_data,
@@ -278,6 +288,7 @@ pub async fn get_wishes(
                         "user_pubkey": "5xot9PdcigoDgdXJYuSGKmHBhcQn3WHPh1EwLyBNxmNw",
                         "content": "Public wish content",
                         "likes": 10,
+                        "is_liked": false,
                         "created_at": "2025-01-01T00:00:00Z"
                     }
                 ],
@@ -295,6 +306,7 @@ pub async fn get_wishes(
 pub async fn get_public_wishes(
     State(state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let limit: i32 = params
         .get("limit")
@@ -306,10 +318,17 @@ pub async fn get_public_wishes(
         .and_then(|s| s.parse().ok())
         .unwrap_or(0)
         .max(0);
+    let user_pubkey = headers
+        .get("x-user-pubkey")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
 
-    match db_get_public_wishes(&state.db_pool, limit, offset).await {
-        Ok(wishes) => {
-            let wishes_data = get_wishes_with_ipfs_content(wishes, &state).await;
+    match get_public_wishes_with_user_likes(&state.db_pool, user_pubkey.as_deref(), limit, offset)
+        .await
+    {
+        Ok(wish_likes) => {
+            let wishes_data =
+                get_wishes_with_ipfs_content_and_likes_from_pairs(wish_likes, &state).await;
 
             Ok(Json(json!({
                 "wishes": wishes_data,
@@ -358,6 +377,7 @@ pub async fn get_user_wishes(
     State(state): State<AppState>,
     Path(user_pubkey): Path<String>,
     Query(params): Query<HashMap<String, String>>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let limit: i32 = params
         .get("limit")
@@ -369,10 +389,15 @@ pub async fn get_user_wishes(
         .and_then(|s| s.parse().ok())
         .unwrap_or(0)
         .max(0);
+    let viewer_pubkey = headers
+        .get("x-user-pubkey")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
 
-    match db_get_user_wishes(&state.db_pool, &user_pubkey, limit, offset).await {
-        Ok(wishes) => {
-            let wishes_data = get_wishes_with_ipfs_content(wishes, &state).await;
+    match get_user_wishes_with_likes(&state.db_pool, &user_pubkey, limit, offset).await {
+        Ok(wish_likes) => {
+            let wishes_data =
+                get_wishes_with_ipfs_content_and_likes_from_pairs(wish_likes, &state).await;
 
             Ok(Json(json!({
                 "user_pubkey": user_pubkey,
@@ -471,13 +496,14 @@ pub async fn get_user_tower(
 
 /// Like a wish
 ///
-/// Increments the like count for a specific wish
+/// Records user like for a specific wish and increments the like count
 #[utoipa::path(
     post,
     path = "/api/wishes/{wish_id}/like",
     params(
         ("wish_id" = i64, Path, description = "Wish ID to like", example = 12345),
     ),
+    request_body(content = serde_json::Value, description = "Request headers should include x-user-pubkey"),
     responses(
         (status = 200, description = "Wish liked successfully", body = serde_json::Value,
             example = json!({
@@ -486,6 +512,8 @@ pub async fn get_user_tower(
                 "success": true
             })
         ),
+        (status = 400, description = "Bad request - missing x-user-pubkey header"),
+        (status = 409, description = "Already liked this wish"),
         (status = 500, description = "Internal server error")
     ),
     tag = "Wishes"
@@ -493,7 +521,36 @@ pub async fn get_user_tower(
 pub async fn like_wish(
     State(state): State<AppState>,
     Path(wish_id): Path<i64>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
+    let user_pubkey = match headers.get("x-user-pubkey") {
+        Some(header_value) => match header_value.to_str() {
+            Ok(pubkey) => pubkey,
+            Err(_) => return Err(StatusCode::BAD_REQUEST),
+        },
+        None => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    // Check if user already liked this wish
+    match check_user_liked_wish(&state.db_pool, wish_id, user_pubkey).await {
+        Ok(true) => return Err(StatusCode::CONFLICT), // Already liked
+        Ok(false) => {}                               // Can proceed
+        Err(e) => {
+            eprintln!("Database error checking like status: {:?}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // Start transaction-like operation (increment likes and insert like record)
+    match insert_wish_like(&state.db_pool, wish_id, user_pubkey).await {
+        Ok(()) => {}
+        Err(e) => {
+            eprintln!("Database error inserting wish like: {:?}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // Increment the like count
     match like_wish_by_id(&state.db_pool, wish_id).await {
         Ok(new_likes) => Ok(Json(json!({
             "wish_id": wish_id,
@@ -501,7 +558,7 @@ pub async fn like_wish(
             "success": true
         }))),
         Err(e) => {
-            eprintln!("Database error liking wish: {:?}", e);
+            eprintln!("Database error incrementing like count: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

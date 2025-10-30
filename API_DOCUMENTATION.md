@@ -289,6 +289,7 @@ GET /api/incense/user/{user_pubkey}/burn-count
 
 ```
 GET /api/wishes?limit=20&offset=0
+X-User-Pubkey: {user_pubkey}
 
 ```
 
@@ -297,6 +298,10 @@ GET /api/wishes?limit=20&offset=0
 - `limit`: 每页数量 (默认20, 最大100)
 - `offset`: 偏移量 (默认0)
 
+**请求头：**
+
+- `X-User-Pubkey`: 用户公钥 (可选，用于检查点赞状态)
+
 **响应：**
 
 ```json
@@ -304,12 +309,12 @@ GET /api/wishes?limit=20&offset=0
   "wishes": [
     {
       "id": 1,
-      "wish_id": "wish_001",
+      "wish_id": 12345,
       "user_pubkey": "UserPubkey...",
       "content": "祈求平安健康",
       "likes": 10,
-      "created_at": "2025-01-01T10:00:00Z",
-      "updated_at": "2025-01-01T10:00:00Z"
+      "is_liked": false,
+      "created_at": "2025-01-01T10:00:00Z"
     }
   ],
   "pagination": {
@@ -320,6 +325,126 @@ GET /api/wishes?limit=20&offset=0
 }
 
 ```
+
+### 获取公开许愿
+
+```
+GET /api/wishes/public?limit=20&offset=0
+X-User-Pubkey: {user_pubkey}
+
+```
+
+**查询参数：**
+
+- `limit`: 每页数量 (默认20, 最大100)
+- `offset`: 偏移量 (默认0)
+
+**请求头：**
+
+- `X-User-Pubkey`: 用户公钥 (可选，用于检查点赞状态)
+
+**响应：**
+
+```json
+{
+  "wishes": [
+    {
+      "id": 1,
+      "wish_id": 12345,
+      "user_pubkey": "UserPubkey...",
+      "content": "公开许愿内容",
+      "likes": 5,
+      "is_liked": false,
+      "created_at": "2025-01-01T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "limit": 20,
+    "offset": 0,
+    "count": 1
+  }
+}
+
+```
+
+### 获取用户许愿
+
+```
+GET /api/wishes/user/{user_pubkey}?limit=20&offset=0
+X-User-Pubkey: {viewer_pubkey}
+
+```
+
+**路径参数：**
+
+- `user_pubkey`: 用户公钥
+
+**查询参数：**
+
+- `limit`: 每页数量 (默认20, 最大100)
+- `offset`: 偏移量 (默认0)
+
+**请求头：**
+
+- `X-User-Pubkey`: 查看者公钥 (可选，用于检查点赞状态)
+
+**响应：**
+
+```json
+{
+  "user_pubkey": "UserPubkey...",
+  "wishes": [
+    {
+      "id": 1,
+      "wish_id": 12345,
+      "user_pubkey": "UserPubkey...",
+      "content": "用户许愿内容",
+      "likes": 3,
+      "is_liked": true,
+      "created_at": "2025-01-01T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "limit": 20,
+    "offset": 0,
+    "count": 1
+  }
+}
+
+```
+
+### 点赞许愿
+
+```
+POST /api/wishes/{wish_id}/like
+X-User-Pubkey: {user_pubkey}
+
+```
+
+**路径参数：**
+
+- `wish_id`: 许愿ID
+
+**请求头：**
+
+- `X-User-Pubkey`: 用户公钥 (必需)
+
+**响应：**
+
+```json
+{
+  "wish_id": 12345,
+  "likes": 11,
+  "success": true
+}
+
+```
+
+**错误响应：**
+
+- `400`: 缺少 X-User-Pubkey 请求头
+- `409`: 用户已经点赞过此许愿
+- `500`: 服务器内部错误
 
 ### 用户许愿塔信息
 
