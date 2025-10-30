@@ -24,6 +24,10 @@ base64 = "0.22"
 borsh = "0.10.3"
 # hex encoding
 hex = "0.4"
+# multihash for IPFS CID handling
+multihash = "0.19"
+# base58 for CID decoding
+bs58 = "0.5"
 # environment
 dotenvy = "0.15"
 sqlx = { version = "0.8.6", features = [

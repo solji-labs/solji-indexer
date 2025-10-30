@@ -132,8 +132,33 @@ pub async fn upload_to_ipfs(
 
         println!("[IPFS] Content uploaded successfully, hash: {}", ipfs_hash);
 
+        // Convert CID to byte array for contract compatibility
+        let content_hash_array = if ipfs_hash.starts_with("Qm") && ipfs_hash.len() == 46 {
+            // CID v0 format: convert to byte array
+            match bs58::decode(ipfs_hash).into_vec() {
+                Ok(decoded) => {
+                    if decoded.len() >= 34 {
+                        // Skip first 2 bytes (multihash header) and take 32 bytes
+                        let mut hash = [0u8; 32];
+                        hash.copy_from_slice(&decoded[2..34]);
+                        serde_json::Value::Array(
+                            hash.iter()
+                                .map(|&b| serde_json::Value::Number(b.into()))
+                                .collect(),
+                        )
+                    } else {
+                        serde_json::Value::String(ipfs_hash.to_string())
+                    }
+                }
+                Err(_) => serde_json::Value::String(ipfs_hash.to_string()),
+            }
+        } else {
+            serde_json::Value::String(ipfs_hash.to_string())
+        };
+
         Ok(Json(json!({
             "hash": ipfs_hash,
+            "content_hash": content_hash_array,
             "url": url,
             "size": request.content.len()
         })))

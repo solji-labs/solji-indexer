@@ -18,6 +18,39 @@ use crate::db::{
     get_wishes_with_user_likes, insert_wish_like, like_wish_by_id,
 };
 
+/// Create wish request
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+pub struct CreateWishRequest {
+    /// IPFS CID of the wish content
+    pub cid: String,
+    /// Whether the wish should be anonymous
+    pub is_anonymous: bool,
+}
+
+/// Convert IPFS CID to 32-byte array for contract
+fn cid_to_content_hash(cid: &str) -> Result<[u8; 32], String> {
+    // For IPFS CID v0 (starts with "Qm"), extract the 32-byte hash
+    if cid.starts_with("Qm") && cid.len() == 46 {
+        // CID v0 format: base58 encoded, first 34 bytes are multihash
+        // We need to decode and extract the 32-byte SHA-256 hash
+        match bs58::decode(cid).into_vec() {
+            Ok(decoded) => {
+                if decoded.len() >= 34 {
+                    // Skip first 2 bytes (multihash header) and take 32 bytes
+                    let mut hash = [0u8; 32];
+                    hash.copy_from_slice(&decoded[2..34]);
+                    Ok(hash)
+                } else {
+                    Err("Invalid CID length".to_string())
+                }
+            }
+            Err(e) => Err(format!("Failed to decode CID: {}", e)),
+        }
+    } else {
+        Err("Only CID v0 (Qm...) is currently supported".to_string())
+    }
+}
+
 // Helper function to retrieve IPFS content for wishes with like status from pairs
 async fn get_wishes_with_ipfs_content_and_likes_from_pairs(
     wish_likes: Vec<(crate::db::models::Wish, bool)>,
@@ -25,12 +58,25 @@ async fn get_wishes_with_ipfs_content_and_likes_from_pairs(
 ) -> Vec<serde_json::Value> {
     let wishes: Vec<crate::db::models::Wish> = wish_likes.iter().map(|(w, _)| w.clone()).collect();
 
-    // Extract IPFS hashes for batch retrieval
+    // Extract IPFS hashes for batch retrieval - convert hex to CID
     let ipfs_hashes: Vec<String> = wishes
         .iter()
         .filter_map(|w| {
-            // Assuming content field now contains IPFS hash
-            if !w.content.is_empty() && w.content.starts_with("Qm") {
+            // If content is hex-encoded 32-byte hash (64 characters), convert to CID
+            if w.content.len() == 64 {
+                match hex::decode(&w.content) {
+                    Ok(bytes) if bytes.len() == 32 => {
+                        // Convert 32-byte hash back to CID v0 format
+                        let mut cid_bytes = vec![0x12, 0x20]; // multihash header for sha2-256
+                        cid_bytes.extend_from_slice(&bytes);
+                        let cid = bs58::encode(&cid_bytes).into_string();
+                        Some(cid)
+                    }
+                    _ => None,
+                }
+            }
+            // If content is already a CID (Qm...), use it directly
+            else if !w.content.is_empty() && w.content.starts_with("Qm") {
                 Some(w.content.clone())
             } else {
                 None
@@ -154,14 +200,38 @@ async fn get_wishes_with_ipfs_content_and_likes_from_pairs(
         std::collections::HashMap::new()
     };
 
+    // Create a mapping from original content to CID for lookup
+    let mut content_to_cid = std::collections::HashMap::new();
+    for w in &wishes {
+        let cid = if !w.content.is_empty() && w.content.starts_with("Qm") {
+            w.content.clone()
+        } else if w.content.len() == 64 {
+            match hex::decode(&w.content) {
+                Ok(bytes) if bytes.len() == 32 => {
+                    let mut cid_bytes = vec![0x12, 0x20];
+                    cid_bytes.extend_from_slice(&bytes);
+                    bs58::encode(&cid_bytes).into_string()
+                }
+                _ => w.content.clone(),
+            }
+        } else {
+            w.content.clone()
+        };
+        content_to_cid.insert(w.content.clone(), cid);
+    }
+
     // Map wishes with like status to JSON with IPFS content
     wish_likes
         .into_iter()
         .map(|(w, is_liked)| {
-            // Get content from IPFS or fallback to stored content
-            let content = if let Some(ipfs_content) = ipfs_contents.get(&w.content) {
+            // Get the CID for this wish's content
+            let cid = content_to_cid.get(&w.content).unwrap_or(&w.content).clone();
+
+            // Get content from IPFS using CID as key, or fallback to hash value
+            let content = if let Some(ipfs_content) = ipfs_contents.get(&cid) {
                 ipfs_content.clone()
             } else {
+                // If IPFS request failed, return the original hash string
                 serde_json::Value::String(w.content.clone())
             };
 

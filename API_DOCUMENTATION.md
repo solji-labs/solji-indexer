@@ -1,6 +1,9 @@
-swagger : [http://185.234.74.185:8091/swagger-ui/](http://185.234.74.185:8091/swagger-ui/#/Incense/get_incense_types)
 
-**服务地址：** [http://185.234.74.185:8091](http://185.234.74.185:8091/)
+**swagger : http://api-v1.solji.fun:8091/swagger-ui/**
+
+**服务地址： https://api-v1.solji.fun**
+
+## 
 
 ## API 端点总览
 
@@ -10,7 +13,7 @@ swagger : [http://185.234.74.185:8091/swagger-ui/](http://185.234.74.185:8091/sw
 - `GET /api/stats` - 全局统计数据
 - `GET /api/temple/level` - 寺庙等级信息
 - `GET /api/temple/stats` - 寺庙统计信息
-- `GET /api/temple/activities/recent` -  最近操作列表
+- `GET /api/temple/activities/recent` - 最近操作列表
 
 ### 香火相关接口
 
@@ -67,7 +70,6 @@ swagger : [http://185.234.74.185:8091/swagger-ui/](http://185.234.74.185:8091/sw
 
 ```
 GET /health
-
 ```
 
 **响应：**
@@ -78,14 +80,12 @@ GET /health
   "service": "solji-indexer",
   "version": "0.1.0"
 }
-
 ```
 
 ### 全局统计
 
 ```
 GET /api/stats
-
 ```
 
 **响应：**
@@ -105,14 +105,12 @@ GET /api/stats
   "updated_at": 1732000000,
   "created_at": "2025-01-01T00:00:00Z"
 }
-
 ```
 
 ### 寺庙等级
 
 ```
 GET /api/temple/level
-
 ```
 
 **响应：**
@@ -144,7 +142,6 @@ GET /api/temple/level
   "progress_percentage": 75.5,
   "updated_at": 1732000000
 }
-
 ```
 
 ### 香火相关接口
@@ -153,7 +150,6 @@ GET /api/temple/level
 
 ```
 GET /api/incense/types
-
 ```
 
 **响应：**
@@ -203,42 +199,38 @@ GET /api/incense/types
     }
   ]
 }
-
 ```
 
-#### 获取最近活动
+### 获取最近活动
 
 ```
 GET /api/temple/activities/recent
-
 ```
 
 **响应：**
 
 ```json
 {
-  "activities": [
+  "wishes": [
     {
-      "user_pubkey": "0x7a3b...4f2c",
-      "action": "burned incense",
-      "created_at": "2025-01-01T12:00:00Z"
-    },
-    {
-      "user_pubkey": "0x9d1e...8a6b",
-      "action": "drew fortune",
-      "created_at": "2025-01-01T11:45:00Z"
+      "id": 1,
+      "wish_id": 12345,
+      "user_pubkey": "UserPubkey...",
+      "content_hash": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+      "likes": 10,
+      "is_liked": false,
+      "created_at": "2025-01-01T10:00:00Z"
     }
   ],
-  "count": 2
+  "pagination": {
+    "limit": 20,
+    "offset": 0,
+    "count": 1
+  }
 }
 
 ```
-
-### 检查燃烧香火限制
-
-```
 GET /api/incense/can-burn?user={user_pubkey}&incense_type={type}&amount={amount}
-
 ```
 
 **查询参数：**
@@ -257,14 +249,12 @@ GET /api/incense/can-burn?user={user_pubkey}&incense_type={type}&amount={amount}
   "requested_amount": 5,
   "max_daily_limit": 10
 }
-
 ```
 
 ### 用户香火燃烧次数
 
 ```
 GET /api/incense/user/{user_pubkey}/burn-count
-
 ```
 
 **响应：**
@@ -280,17 +270,15 @@ GET /api/incense/user/{user_pubkey}/burn-count
   ],
   "max_daily_limit": 10
 }
-
 ```
 
-### 许愿相关接口
+## 许愿相关接口
 
 ### 分页获取许愿
 
 ```
 GET /api/wishes?limit=20&offset=0
 X-User-Pubkey: {user_pubkey}
-
 ```
 
 **查询参数：**
@@ -323,7 +311,6 @@ X-User-Pubkey: {user_pubkey}
     "count": 1
   }
 }
-
 ```
 
 ### 获取公开许愿
@@ -331,7 +318,6 @@ X-User-Pubkey: {user_pubkey}
 ```
 GET /api/wishes/public?limit=20&offset=0
 X-User-Pubkey: {user_pubkey}
-
 ```
 
 **查询参数：**
@@ -364,7 +350,6 @@ X-User-Pubkey: {user_pubkey}
     "count": 1
   }
 }
-
 ```
 
 ### 获取用户许愿
@@ -372,7 +357,6 @@ X-User-Pubkey: {user_pubkey}
 ```
 GET /api/wishes/user/{user_pubkey}?limit=20&offset=0
 X-User-Pubkey: {viewer_pubkey}
-
 ```
 
 **路径参数：**
@@ -410,7 +394,6 @@ X-User-Pubkey: {viewer_pubkey}
     "count": 1
   }
 }
-
 ```
 
 ### 点赞许愿
@@ -418,7 +401,6 @@ X-User-Pubkey: {viewer_pubkey}
 ```
 POST /api/wishes/{wish_id}/like
 X-User-Pubkey: {user_pubkey}
-
 ```
 
 **路径参数：**
@@ -437,7 +419,6 @@ X-User-Pubkey: {user_pubkey}
   "likes": 11,
   "success": true
 }
-
 ```
 
 **错误响应：**
@@ -450,7 +431,6 @@ X-User-Pubkey: {user_pubkey}
 
 ```
 GET /api/wish-tower/{user_pubkey}
-
 ```
 
 **响应：**
@@ -462,16 +442,14 @@ GET /api/wish-tower/{user_pubkey}
   "level": 2,
   "last_updated": "2025-01-01T10:00:00Z"
 }
-
 ```
 
-### 捐赠相关接口
+## 捐赠相关接口
 
 ### 获取捐赠等级
 
 ```
 GET /api/donation/tiers
-
 ```
 
 **响应：**
@@ -517,7 +495,6 @@ GET /api/donation/tiers
     }
   ]
 }
-
 ```
 
 ### 提交捐赠交易
@@ -532,7 +509,6 @@ Content-Type: application/json
   "tier": "bronze",
   "transaction_signature": "5xXxX..."
 }
-
 ```
 
 **响应：**
@@ -546,16 +522,14 @@ Content-Type: application/json
   "nft_mint": null,
   "transaction_signature": "5xXxX..."
 }
-
 ```
 
-### 护身符相关接口
+## 护身符相关接口
 
 ### 获取待领取护身符
 
 ```
 GET /api/amulet/user/{user_pubkey}/pending
-
 ```
 
 **响应：**
@@ -574,14 +548,12 @@ GET /api/amulet/user/{user_pubkey}/pending
   ],
   "count": 1
 }
-
 ```
 
 ### 获取最近护身符掉落
 
 ```
 GET /api/amulet/user/{user_pubkey}/recent-drop
-
 ```
 
 **响应：**
@@ -598,10 +570,9 @@ GET /api/amulet/user/{user_pubkey}/recent-drop
     "time_since_drop_seconds": 3600
   }
 }
-
 ```
 
-### IPFS 相关接口
+## IPFS 相关接口
 
 ### 上传内容到 IPFS
 
@@ -612,7 +583,6 @@ Content-Type: application/json
 {
   "content": "要上传到 IPFS 的文本内容"
 }
-
 ```
 
 **请求参数：**
@@ -624,17 +594,15 @@ Content-Type: application/json
 ```json
 {
   "hash": "QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-  "url": "https://solji.mypinata.cloud/ipfs/QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "url": "<https://solji.mypinata.cloud/ipfs/QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX>",
   "size": 1024
 }
-
 ```
 
 ### 通过哈希获取 IPFS 内容
 
 ```
 GET /api/ipfs/{hash}
-
 ```
 
 **路径参数：**
@@ -649,9 +617,8 @@ GET /api/ipfs/{hash}
   "content": "存储在 IPFS 上的内容",
   "content_type": "text/plain",
   "size": 1024,
-  "gateway_url": "https://solji.mypinata.cloud/ipfs/QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  "gateway_url": "<https://solji.mypinata.cloud/ipfs/QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX>"
 }
-
 ```
 
 ### 批量获取多个 IPFS 内容
@@ -666,7 +633,6 @@ Content-Type: application/json
     "QmYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"
   ]
 }
-
 ```
 
 **请求参数：**
@@ -683,28 +649,26 @@ Content-Type: application/json
       "content": "第一个文件的内容",
       "content_type": "text/plain",
       "size": 1024,
-      "gateway_url": "https://solji.mypinata.cloud/ipfs/QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      "gateway_url": "<https://solji.mypinata.cloud/ipfs/QmXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX>"
     },
     {
       "hash": "QmYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY",
       "content": "第二个文件的内容",
       "content_type": "application/json",
       "size": 2048,
-      "gateway_url": "https://solji.mypinata.cloud/ipfs/QmYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"
+      "gateway_url": "<https://solji.mypinata.cloud/ipfs/QmYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY>"
     }
   ],
   "errors": []
 }
-
 ```
 
-### 个人信息相关接口
+## 个人信息相关接口
 
-#### 获取用户基本信息
+### 获取用户基本信息
 
 ```
 GET /api/profile/{user_pubkey}/basic
-
 ```
 
 **响应：**
@@ -722,14 +686,12 @@ GET /api/profile/{user_pubkey}/basic
     "total_donated_sol": 1.5
   }
 }
-
 ```
 
-#### 获取用户活动历史
+### 获取用户活动历史
 
 ```
 GET /api/profile/{user_pubkey}/activities
-
 ```
 
 **查询参数：**
@@ -762,14 +724,12 @@ GET /api/profile/{user_pubkey}/activities
     "count": 2
   }
 }
-
 ```
 
-#### 获取用户成就
+### 获取用户成就
 
 ```
 GET /api/profile/{user_pubkey}/achievements
-
 ```
 
 **响应：**
@@ -798,14 +758,12 @@ GET /api/profile/{user_pubkey}/achievements
     }
   ]
 }
-
 ```
 
-#### 获取用户NFT
+### 获取用户NFT
 
 ```
 GET /api/profile/{user_pubkey}/nfts
-
 ```
 
 **响应：**
@@ -835,7 +793,6 @@ GET /api/profile/{user_pubkey}/nfts
     }
   ]
 }
-
 ```
 
 ## 排行榜接口
@@ -844,7 +801,6 @@ GET /api/profile/{user_pubkey}/nfts
 
 ```
 GET /api/incense/leaderboard?period=all
-
 ```
 
 **查询参数：**
@@ -866,14 +822,12 @@ GET /api/incense/leaderboard?period=all
   ],
   "count": 100
 }
-
 ```
 
 ### 捐赠排行榜
 
 ```
 GET /api/donation/leaderboard?limit=100&offset=0
-
 ```
 
 **响应：**
@@ -893,7 +847,6 @@ GET /api/donation/leaderboard?limit=100&offset=0
     "count": 100
   }
 }
-
 ```
 
 ## 错误响应
@@ -904,7 +857,6 @@ GET /api/donation/leaderboard?limit=100&offset=0
 {
   "error": "Error description"
 }
-
 ```
 
 常见状态码：
@@ -912,80 +864,6 @@ GET /api/donation/leaderboard?limit=100&offset=0
 - `400` - 请求参数错误
 - `500` - 服务器内部错误
 
-## 使用示例
+## 
 
-### JavaScript/TypeScript 客户端示例
-
-```tsx
-class SoljiIndexerClient {
-  private baseUrl: string;
-
-  constructor(baseUrl = '<http://localhost:3001>') {
-    this.baseUrl = baseUrl;
-  }
-
-  async getTempleStats() {
-    const response = await fetch(`${this.baseUrl}/api/temple/stats`);
-    return response.json();
-  }
-
-  async checkCanBurnIncense(userPubkey: string, incenseType: number, amount: number) {
-    const params = new URLSearchParams({
-      user: userPubkey,
-      incense_type: incenseType.toString(),
-      amount: amount.toString()
-    });
-    const response = await fetch(`${this.baseUrl}/api/incense/can-burn?${params}`);
-    return response.json();
-  }
-
-  async submitDonation(donation: {
-    user_pubkey: string;
-    amount_sol: number;
-    tier: string;
-    transaction_signature: string;
-  }) {
-    const response = await fetch(`${this.baseUrl}/api/donation/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(donation)
-    });
-    return response.json();
-  }
-
-  async uploadToIPFS(content: string) {
-    const response = await fetch(`${this.baseUrl}/api/ipfs/upload`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ content })
-    });
-    return response.json();
-  }
-
-  async getIPFSContent(hash: string) {
-    const response = await fetch(`${this.baseUrl}/api/ipfs/${hash}`);
-    return response.json();
-  }
-
-  async getIPFSBatchContent(hashes: string[]) {
-    const response = await fetch(`${this.baseUrl}/api/ipfs/batch`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ hashes })
-    });
-    return response.json();
-  }
-}
-
-// 使用示例
-const client = new SoljiIndexerClient();
-const stats = await client.getTempleStats();
-console.log('Temple level:', stats.level);
-
-```
+###
