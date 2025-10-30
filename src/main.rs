@@ -14,14 +14,19 @@ use crate::events::ProgramEvent;
 use crate::indexer::fetcher::IndexerFetcher;
 use crate::processor::start_event_processor;
 use crate::utils::config::Config;
-use axum::Router;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tower_http::cors::CorsLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // // 设置 panic hook 捕获所有 panic
+    // std::panic::set_hook(Box::new(|panic_info| {
+    //     eprintln!("PANIC: {:?}", panic_info);
+    //     eprintln!("Location: {:?}", panic_info.location());
+    // }));
     println!("Loaded config");
     // Load config
     let config = Config::from_env()?;

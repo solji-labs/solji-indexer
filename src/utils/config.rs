@@ -10,6 +10,9 @@ pub struct Config {
     pub db_max_open_conns: u32,
     pub db_max_idle_conns: u32,
     pub db_conn_max_lifetime: u64,
+    pub pinata_jwt: String,
+    pub pinata_api_url: String,
+    pub pinata_gateway: String,
 }
 
 impl Config {
@@ -26,6 +29,9 @@ impl Config {
         let program_id_str = std::env::var("PROGRAM_ID")?;
         let program_id = Pubkey::from_str(&program_id_str)?;
         let database_url = std::env::var("DATABASE_URL")?;
+        let pinata_jwt = std::env::var("PINATA_JWT")?;
+        let pinata_api_url = std::env::var("PINATA_API_URL")?;
+        let pinata_gateway = std::env::var("PINATA_GATEWAY")?;
 
         // Database connection pool settings
         let db_max_open_conns = std::env::var("DB_MAX_OPEN_CONNS")
@@ -48,6 +54,9 @@ impl Config {
             db_max_open_conns,
             db_max_idle_conns,
             db_conn_max_lifetime,
+            pinata_jwt,
+            pinata_api_url,
+            pinata_gateway,
         })
     }
 }

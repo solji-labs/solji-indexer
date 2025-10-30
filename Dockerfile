@@ -1,13 +1,12 @@
-# ----------------------------------------------------------------------
-# Stage 1: Build Stage - Dynamic linking (default GNU target)
-# ----------------------------------------------------------------------
 FROM rust:latest AS builder
 
-# Install build dependencies (especially libssl-dev for openssl-sys crate to find headers)
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
-    pkg-config libssl-dev build-essential \
+    pkg-config \
+    libssl-dev \
+    build-essential \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-
 # Set container working directory to /app
 WORKDIR /app
 
@@ -24,14 +23,11 @@ COPY . .
 # 4. Final build (use default dynamic linking target)
 RUN cargo build --release
 
-# ----------------------------------------------------------------------
-# Stage 2: Runtime Stage - Ensure dynamic libraries exist
-# ----------------------------------------------------------------------
 FROM debian:bookworm-slim
 
-# Install runtime dynamic OpenSSL libraries (libssl3 is the runtime required library)
 RUN apt-get update && apt-get install -y \
-    libssl3 ca-certificates \
+    libssl3 \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy compiled binary (dynamic linking target path is /app/target/release/)

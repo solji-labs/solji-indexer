@@ -14,6 +14,7 @@ pub mod donation;
 pub mod fortune;
 pub mod health;
 pub mod incense;
+pub mod ipfs;
 pub mod models;
 pub mod profile;
 pub mod stats;
@@ -48,6 +49,8 @@ pub fn create_router(state: AppState) -> Router {
         .merge(fortune::routes(state.clone()))
         // Profile
         .merge(profile::routes(state.clone()))
+        // IPFS
+        .merge(ipfs::routes(state.clone()))
 }
 
 /// OpenAPI 文档汇总
@@ -115,6 +118,11 @@ pub fn create_router(state: AppState) -> Router {
         profile::get_profile_activities,
         profile::get_profile_achievements,
         profile::get_profile_nfts,
+
+        // IPFS
+        ipfs::upload_to_ipfs,
+        ipfs::get_ipfs_content,
+        ipfs::get_ipfs_batch_content,
     ),
     components(
         schemas(
@@ -135,6 +143,7 @@ pub fn create_router(state: AppState) -> Router {
         (name = "Amulet", description = "Amulet NFT management"),
         (name = "Fortune", description = "Fortune drawing and statistics"),
         (name = "Profile", description = "User profile and statistics"),
+        (name = "IPFS", description = "IPFS content upload and management"),
         (name = "Admin", description = "Administrative endpoints"),
     )
 )]

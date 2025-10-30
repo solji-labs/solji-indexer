@@ -48,9 +48,10 @@ swagger : [http://185.234.74.185:8091/swagger-ui/](http://185.234.74.185:8091/sw
 
 ### 个人信息相关接口
 
-- `GET /api/profile/{user_pubkey}` - 获取用户完整资料
-
-### 个人信息相关接口
+- `GET /api/profile/{user_pubkey}/basic` - 获取用户基本信息
+- `GET /api/profile/{user_pubkey}/activities` - 获取用户活动历史
+- `GET /api/profile/{user_pubkey}/achievements` - 获取用户成就
+- `GET /api/profile/{user_pubkey}/nfts` - 获取用户NFT
 
 ## 详细接口文档
 
@@ -471,10 +472,10 @@ GET /api/amulet/user/{user_pubkey}/recent-drop
 
 ### 个人信息相关接口
 
-#### 获取用户完整资料
+#### 获取用户基本信息
 
 ```
-GET /api/profile/{user_pubkey}
+GET /api/profile/{user_pubkey}/basic
 
 ```
 
@@ -484,7 +485,6 @@ GET /api/profile/{user_pubkey}
 {
   "user_pubkey": "UserPubkey...",
   "merit_points": 1520,
-  "incense_points": 0,
   "rank": "供奉",
   "joined_date": "2025-01-01T00:00:00Z",
   "stats": {
@@ -492,26 +492,118 @@ GET /api/profile/{user_pubkey}
     "total_fortunes_drawn": 23,
     "total_wishes_made": 12,
     "total_donated_sol": 1.5
-  },
-  "nfts": {
-    "amulet_count": 0,
-    "fortune_nft_count": 0,
-    "buddha_nft_count": 0
-  },
-  "recent_activity": [
+  }
+}
+
+```
+
+#### 获取用户活动历史
+
+```
+GET /api/profile/{user_pubkey}/activities
+
+```
+
+**查询参数：**
+
+- `limit`: 每页数量 (默认20, 最大100)
+- `offset`: 偏移量 (默认0)
+
+**响应：**
+
+```json
+{
+  "user_pubkey": "UserPubkey...",
+  "activities": [
     {
       "activity_type": "incense_burn",
       "description": "Burned Supreme Incense",
       "merit_gained": 30,
       "created_at": "2025-01-01T12:00:00Z"
+    },
+    {
+      "activity_type": "fortune_draw",
+      "description": "Drew Great Fortune",
+      "merit_gained": 2,
+      "created_at": "2025-01-01T11:45:00Z"
     }
   ],
+  "pagination": {
+    "limit": 20,
+    "offset": 0,
+    "count": 2
+  }
+}
+
+```
+
+#### 获取用户成就
+
+```
+GET /api/profile/{user_pubkey}/achievements
+
+```
+
+**响应：**
+
+```json
+{
+  "user_pubkey": "UserPubkey...",
   "achievements": [
     {
       "title": "First Incense",
       "description": "Burned your first incense",
       "unlocked": true,
       "unlocked_at": "2025-01-01T10:00:00Z"
+    },
+    {
+      "title": "Fortune Seeker",
+      "description": "Drew 10 fortunes",
+      "unlocked": true,
+      "unlocked_at": "2025-01-01T11:00:00Z"
+    },
+    {
+      "title": "Temple Master",
+      "description": "Reach Temple Master rank",
+      "unlocked": false,
+      "unlocked_at": null
+    }
+  ]
+}
+
+```
+
+#### 获取用户NFT
+
+```
+GET /api/profile/{user_pubkey}/nfts
+
+```
+
+**响应：**
+
+```json
+{
+  "user_pubkey": "UserPubkey...",
+  "nfts": {
+    "amulet_count": 3,
+    "fortune_nft_count": 5,
+    "buddha_nft_count": 1,
+    "total_count": 9
+  },
+  "collections": [
+    {
+      "type": "amulet",
+      "name": "护身符",
+      "count": 3,
+      "items": [
+        {
+          "id": 1,
+          "name": "平安符",
+          "rarity": "common",
+          "minted_at": "2025-01-01T10:00:00Z"
+        }
+      ]
     }
   ]
 }

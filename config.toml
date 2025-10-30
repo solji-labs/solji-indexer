@@ -1,0 +1,20 @@
+# Solji Indexer Configuration
+# Default values for development and production
+# Environment variables will override these values
+
+# Solana RPC Configuration
+rpc_url = "https://api.devnet.solana.com"
+program_id = "D9immZaczS2ASFqqSux2iCCAaFat7vcusB1PQ2SW6d95"
+
+# Database Configuration
+database_url = "mysql://root:Solji123@185.234.74.185:33306/solji_db"
+
+# Database Connection Pool Settings
+db_max_open_conns = 100
+db_max_idle_conns = 10
+db_conn_max_lifetime = 3600
+
+# IPFS/Pinata Configuration
+pinata_jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI0NjdlZmM3My1lZDkwLTRhYmMtYTczNy1jMDNhMjY5MTBmMDciLCJlbWFpbCI6ImNodWhlbWlhb0BnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGluX3BvbGljeSI6eyJyZWdpb25zIjpbeyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJOWUMxIn1dLCJ2ZXJzaW9uIjoxfSwibWZhX2VuYWJsZWQiOmZhbHNlLCJzdGF0dXMiOiJBQ1RJVkUifSwiYXV0aGVudGljYXRpb25UeXBlIjoic2NvcGVkS2V5Iiwic2NvcGVkS2V5S2V5IjoiNTg4NGUxNDY4NGFlZGY2NWUyNTYiLCJzY29wZWRLZXlTZWNyZXQiOiI2ZjkzOTJjNTVkZGM0Yzg4N2E1MWVhN2FlMWY2ODM2MThmNzNiNjJmMzE4NDM2MDQxNWRiMzEyNThhZWY3ZTk1IiwiZXhwIjoxNzc1NTQyOTc5fQ.6p7STAl83z6gDit--fLbW6k1EvEfVJgNKEOcblvS1SQ"
+pinata_api_url = "https://api.pinata.cloud/pinning/pinFileToIPFS"
+pinata_gateway = "https://solji.mypinata.cloud/ipfs"

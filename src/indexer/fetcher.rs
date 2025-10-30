@@ -1,4 +1,4 @@
-use futures_util::{SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt};
 use serde_json::Value;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::pubkey::Pubkey;

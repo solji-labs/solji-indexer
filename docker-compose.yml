@@ -18,7 +18,7 @@ services:
 
   # indexer service
   sonia-indexer:
-      image: sonia831/solji-indexer:v2.0.0
+      image: sonia831/solji-indexer:v4.0.0
       container_name: solji_indexer_sonia
       restart: always
       # network_mode: "host"
@@ -26,4 +26,8 @@ services:
         - RUST_LOG=trace
         - API_PORT=8080
         - DATABASE_URL=mysql://root:Solji123@185.234.74.185:33306/solji_db
-        - SOLANA_RPC_URL=https://api.devnet.solana.com
+        - RPC_URL=https://api.devnet.solana.com
+        - PROGRAM_ID=D9immZaczS2ASFqqSux2iCCAaFat7vcusB1PQ2SW6d95
+        - PINATA_JWT=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI0NjdlZmM3My1lZDkwLTRhYmMtYTczNy1jMDNhMjY5MTBmMDciLCJlbWFpbCI6ImNodWhlbWlhb0BnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGluX3BvbGljeSI6eyJyZWdpb25zIjpbeyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJOWUMxIn1dLCJ2ZXJzaW9uIjoxfSwibWZhX2VuYWJsZWQiOmZhbHNlLCJzdGF0dXMiOiJBQ1RJVkUifSwiYXV0aGVudGljYXRpb25UeXBlIjoic2NvcGVkS2V5Iiwic2NvcGVkS2V5S2V5IjoiNTg4NGUxNDY4NGFlZGY2NWUyNTYiLCJzY29wZWRLZXlTZWNyZXQiOiI2ZjkzOTJjNTVkZGM0Yzg4N2E1MWVhN2FlMWY2ODM2MThmNzNiNjJmMzE4NDM2MDQxNWRiMzEyNThhZWY3ZTk1IiwiZXhwIjoxNzc1NTQyOTc5fQ.6p7STAl83z6gDit--fLbW6k1EvEfVJgNKEOcblvS1SQ
+        - PINATA_API_URL=https://api.pinata.cloud/pinning/pinFileToIPFS
+        - PINATA_GATEWAY=https://solji.mypinata.cloud/ipfs
