@@ -486,11 +486,16 @@ async fn handle_incense_burned(
 
     // }
 
-    // Calculate rewards based on incense type (this should match the contract logic)
-    // For now, we'll use placeholder values - in real implementation, this should
-    // query the temple config to get the exact merit and incense_points values
-    let merit_gained = 10 * amount as i64; // Placeholder: 10 merit per incense
-    let incense_points_gained = 100 * amount as i64; // Placeholder: 100 incense points per incense
+    // Calculate rewards based on incense type (matching the product specifications)
+    let (merit_gained, incense_points_gained) = match incense_id {
+        0 => (10 * amount as i64, 100 * amount as i64), // Clear Incense: 10 merit, 100 incense points
+        1 => (65 * amount as i64, 600 * amount as i64), // Sandalwood: 65 merit, 600 incense points
+        2 => (1200 * amount as i64, 3100 * amount as i64), // Ambergris Incense: 1200 merit, 3100 incense points
+        3 => (3400 * amount as i64, 9000 * amount as i64), // Supreme Spirit Incense: 3400 merit, 9000 incense points
+        4 => (12000 * amount as i64, 10000 * amount as i64), // Secret Brew Incense: 12000 merit, 10000 incense points
+        5 => (300000 * amount as i64, 400000 * amount as i64), // Celestial Incense: 300000 merit, 400000 incense points
+        _ => (10 * amount as i64, 100 * amount as i64),        // Default values
+    };
 
     // Update user incense balance, insert history, and update global stats atomically
     crate::db::update_user_incense_and_history(
