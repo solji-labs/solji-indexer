@@ -299,6 +299,23 @@ async fn handle_donation_completed(
         }
     }
 
+    // 3. Update user state with donation amount
+    match crate::db::upsert_user_state_by_donation(
+        pool,
+        &user_str,
+        merit_gained as u64,
+        0,      // no incense points
+        amount, // donation amount in lamports
+    )
+    .await
+    {
+        Ok(_) => println!("✅ Successfully updated user state with donation"),
+        Err(e) => {
+            eprintln!("❌ Failed to update user state with donation: {:?}", e);
+            return Err(e);
+        }
+    }
+
     // All rewards handled in contract transaction
 
     Ok(())

@@ -951,6 +951,17 @@ pub async fn get_user_profile_basic(
         0.0
     };
 
+    // Calculate total incense burned from incense_burn_history table
+    let total_incense_burned = {
+        let incense_records = sqlx::query_scalar::<_, i32>(
+            "SELECT incense_amount FROM incense_burn_history WHERE user_pubkey = ?",
+        )
+        .bind(user_pubkey)
+        .fetch_all(pool.as_ref())
+        .await?;
+        incense_records.iter().fold(0i32, |acc, &x| acc + x)
+    };
+
     Ok(UserProfileBasic {
         user_pubkey: user_pubkey.to_string(),
         merit_points: user_state.as_ref().map(|s| s.merit).unwrap_or(0),
@@ -958,7 +969,7 @@ pub async fn get_user_profile_basic(
         rank: rank.to_string(),
         joined_date: user_state.as_ref().map(|s| s.created_at),
         stats: UserProfileStats {
-            total_incense_burned: 0, // Will be calculated separately
+            total_incense_burned: total_incense_burned as i32,
             total_fortunes_drawn: user_state
                 .as_ref()
                 .map(|s| s.total_fortune_draws)
@@ -1150,6 +1161,9 @@ pub async fn get_user_profile_achievements(
         incense_records.iter().fold(0i32, |acc, &x| acc + x)
     };
     println!("✅ [PROFILE ACHIEVEMENTS] incense_burn_history query completed");
+
+    // Also calculate total incense burned for basic profile
+    let total_incense_burned_for_basic = total_incense_burned;
 
     // Get donation info from user_donations table for donation_count
     let donation_info = sqlx::query_as::<_, (i32,)>(

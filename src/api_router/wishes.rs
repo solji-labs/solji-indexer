@@ -611,25 +611,90 @@ pub async fn like_wish(
         }
     }
 
-    // Start transaction-like operation (increment likes and insert like record)
-    match insert_wish_like(&state.db_pool, wish_id, user_pubkey).await {
-        Ok(()) => {}
+    // Use database transaction to ensure atomicity
+    let mut tx = match state.db_pool.begin().await {
+        Ok(tx) => tx,
         Err(e) => {
-            eprintln!("Database error inserting wish like: {:?}", e);
+            eprintln!("Failed to start transaction: {:?}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
+    };
+
+    // Insert wish like record
+    if let Err(e) = sqlx::query(
+        r#"
+        INSERT INTO wish_likes (wish_id, user_pubkey)
+        VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE
+            created_at = created_at
+        "#,
+    )
+    .bind(wish_id)
+    .bind(user_pubkey)
+    .execute(&mut *tx)
+    .await
+    {
+        eprintln!("Database error inserting wish like: {:?}", e);
+        if let Err(rollback_err) = tx.rollback().await {
+            eprintln!("Failed to rollback transaction: {:?}", rollback_err);
+        }
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 
     // Increment the like count
-    match like_wish_by_id(&state.db_pool, wish_id).await {
-        Ok(new_likes) => Ok(Json(json!({
-            "wish_id": wish_id,
-            "likes": new_likes,
-            "success": true
-        }))),
-        Err(e) => {
-            eprintln!("Database error incrementing like count: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+    let new_likes = match sqlx::query_scalar::<_, i32>(
+        r#"
+        UPDATE wishes
+        SET likes = likes + 1, updated_at = NOW()
+        WHERE wish_id = ?
+        "#,
+    )
+    .bind(wish_id)
+    .fetch_optional(&mut *tx)
+    .await
+    {
+        Ok(Some(_)) => {
+            // Get the updated likes count
+            match sqlx::query_scalar::<_, i32>("SELECT likes FROM wishes WHERE wish_id = ?")
+                .bind(wish_id)
+                .fetch_one(&mut *tx)
+                .await
+            {
+                Ok(likes) => likes,
+                Err(e) => {
+                    eprintln!("Database error getting updated likes count: {:?}", e);
+                    if let Err(rollback_err) = tx.rollback().await {
+                        eprintln!("Failed to rollback transaction: {:?}", rollback_err);
+                    }
+                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                }
+            }
         }
+        Ok(None) => {
+            eprintln!("Wish not found: {}", wish_id);
+            if let Err(rollback_err) = tx.rollback().await {
+                eprintln!("Failed to rollback transaction: {:?}", rollback_err);
+            }
+            return Err(StatusCode::NOT_FOUND);
+        }
+        Err(e) => {
+            eprintln!("Database error updating likes count: {:?}", e);
+            if let Err(rollback_err) = tx.rollback().await {
+                eprintln!("Failed to rollback transaction: {:?}", rollback_err);
+            }
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    // Commit transaction
+    if let Err(e) = tx.commit().await {
+        eprintln!("Failed to commit transaction: {:?}", e);
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
+
+    Ok(Json(json!({
+        "wish_id": wish_id,
+        "likes": new_likes,
+        "success": true
+    })))
 }
