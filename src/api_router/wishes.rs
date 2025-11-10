@@ -15,7 +15,7 @@ use crate::db::{
     get_public_wishes_with_user_likes, get_user_daily_wish_count as db_get_user_daily_wish_count,
     get_user_wish_tower_stats as db_get_user_wish_tower_stats,
     get_user_wishes as db_get_user_wishes, get_user_wishes_with_likes, get_wishes as db_get_wishes,
-    get_wishes_with_user_likes, insert_wish_like, like_wish_by_id,
+    get_wishes_with_user_likes,
 };
 
 /// Create wish request
@@ -236,7 +236,6 @@ async fn get_wishes_with_ipfs_content_and_likes_from_pairs(
             };
 
             json!({
-                "id": w.id,
                 "wish_id": w.wish_id,
                 "user_pubkey": w.user_pubkey,
                 "content": content,
@@ -571,7 +570,7 @@ pub async fn get_user_tower(
     post,
     path = "/api/wishes/{wish_id}/like",
     params(
-        ("wish_id" = i64, Path, description = "Wish ID to like", example = 12345),
+        ("wish_id" = u64, Path, description = "Wish ID to like", example = 12345),
     ),
     request_body(content = serde_json::Value, description = "Request headers should include x-user-pubkey"),
     responses(
@@ -590,7 +589,7 @@ pub async fn get_user_tower(
 )]
 pub async fn like_wish(
     State(state): State<AppState>,
-    Path(wish_id): Path<i64>,
+    Path(wish_id): Path<u64>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let user_pubkey = match headers.get("x-user-pubkey") {
@@ -600,6 +599,27 @@ pub async fn like_wish(
         },
         None => return Err(StatusCode::BAD_REQUEST),
     };
+
+    // First check if wish exists
+    let wish_count =
+        match sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM wishes WHERE wish_id = ?")
+            .bind(wish_id)
+            .fetch_one(&*state.db_pool)
+            .await
+        {
+            Ok(count) => count,
+            Err(e) => {
+                eprintln!("Database error checking wish existence: {:?}", e);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
+
+    eprintln!("Wish ID {} check result: count = {}", wish_id, wish_count);
+
+    if wish_count == 0 {
+        eprintln!("Wish not found: {}", wish_id);
+        return Err(StatusCode::NOT_FOUND);
+    }
 
     // Check if user already liked this wish
     match check_user_liked_wish(&state.db_pool, wish_id, user_pubkey).await {
@@ -629,7 +649,7 @@ pub async fn like_wish(
             created_at = created_at
         "#,
     )
-    .bind(wish_id)
+    .bind(wish_id as i64)
     .bind(user_pubkey)
     .execute(&mut *tx)
     .await
@@ -642,21 +662,31 @@ pub async fn like_wish(
     }
 
     // Increment the like count
-    let new_likes = match sqlx::query_scalar::<_, i32>(
+    let update_result = sqlx::query(
         r#"
         UPDATE wishes
         SET likes = likes + 1, updated_at = NOW()
         WHERE wish_id = ?
         "#,
     )
-    .bind(wish_id)
-    .fetch_optional(&mut *tx)
-    .await
-    {
-        Ok(Some(_)) => {
+    .bind(wish_id as i64)
+    .execute(&mut *tx)
+    .await;
+
+    let new_likes = match update_result {
+        Ok(result) => {
+            if result.rows_affected() == 0 {
+                // This should not happen since we checked existence above
+                eprintln!("Wish disappeared during like operation: {}", wish_id);
+                if let Err(rollback_err) = tx.rollback().await {
+                    eprintln!("Failed to rollback transaction: {:?}", rollback_err);
+                }
+                return Err(StatusCode::NOT_FOUND);
+            }
+
             // Get the updated likes count
             match sqlx::query_scalar::<_, i32>("SELECT likes FROM wishes WHERE wish_id = ?")
-                .bind(wish_id)
+                .bind(wish_id as i64)
                 .fetch_one(&mut *tx)
                 .await
             {
@@ -669,13 +699,6 @@ pub async fn like_wish(
                     return Err(StatusCode::INTERNAL_SERVER_ERROR);
                 }
             }
-        }
-        Ok(None) => {
-            eprintln!("Wish not found: {}", wish_id);
-            if let Err(rollback_err) = tx.rollback().await {
-                eprintln!("Failed to rollback transaction: {:?}", rollback_err);
-            }
-            return Err(StatusCode::NOT_FOUND);
         }
         Err(e) => {
             eprintln!("Database error updating likes count: {:?}", e);

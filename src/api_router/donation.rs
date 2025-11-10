@@ -11,8 +11,8 @@ use std::collections::HashMap;
 
 use super::{models::DonationTierInfo, AppState};
 use crate::db::{
-    check_user_in_top_10000_donors, get_donation_leaderboard, get_user_donation_badges,
-    get_user_donation_history,
+    check_user_in_top_10000_donors, get_donation_leaderboard, get_donation_leaderboard_by_period,
+    get_user_donation_badges, get_user_donation_history,
 };
 
 pub fn routes(state: AppState) -> Router {
@@ -46,39 +46,39 @@ pub async fn get_tiers() -> Result<Json<serde_json::Value>, StatusCode> {
     let tiers = vec![
         DonationTierInfo {
             tier: "bronze".to_string(),
-            name: "铜牌信士".to_string(),
+            name: "Bronze Devotee".to_string(),
             name_en: "Bronze Devotee".to_string(),
             min_amount: 0.05,
             merit_points: 65,
-            badge: "入门功德铜章 NFT".to_string(),
-            benefits: vec!["点亮香火墙名字".to_string()],
+            badge: "Bronze Merit Badge NFT".to_string(),
+            benefits: vec!["Display name on incense wall".to_string()],
         },
         DonationTierInfo {
             tier: "silver".to_string(),
-            name: "银牌居士".to_string(),
+            name: "Silver Layman".to_string(),
             name_en: "Silver Layman".to_string(),
             min_amount: 0.2,
             merit_points: 1300,
-            badge: "精进银章 NFT".to_string(),
-            benefits: vec!["可为寺庙投票提案".to_string()],
+            badge: "Silver Progress Badge NFT".to_string(),
+            benefits: vec!["Vote on temple proposals".to_string()],
         },
         DonationTierInfo {
             tier: "gold".to_string(),
-            name: "金牌护法".to_string(),
+            name: "Gold Guardian".to_string(),
             name_en: "Gold Guardian".to_string(),
             min_amount: 1.0,
             merit_points: 14000,
-            badge: "护法金章 NFT".to_string(),
-            benefits: vec!["可参与寺庙 NFT 治理".to_string()],
+            badge: "Gold Guardian Badge NFT".to_string(),
+            benefits: vec!["Participate in temple NFT governance".to_string()],
         },
         DonationTierInfo {
             tier: "supreme".to_string(),
-            name: "至尊供奉".to_string(),
+            name: "Supreme Patron".to_string(),
             name_en: "Supreme Patron".to_string(),
             min_amount: 5.0,
             merit_points: 120000,
-            badge: "至尊龙章 NFT".to_string(),
-            benefits: vec!["解锁彩蛋内容+寺庙共建者身份".to_string()],
+            badge: "Supreme Dragon Badge NFT".to_string(),
+            benefits: vec!["Unlock easter eggs + temple co-builder status".to_string()],
         },
     ];
 
@@ -90,6 +90,7 @@ pub async fn get_tiers() -> Result<Json<serde_json::Value>, StatusCode> {
     get,
     path = "/api/donation/leaderboard",
     params(
+        ("period" = Option<String>, Query, description = "Time period: 'all', 'daily', 'weekly', 'monthly'. Defaults to 'all' if not provided"),
         ("limit" = Option<usize>, Query, description = "Number of entries (max 1000)"),
         ("offset" = Option<usize>, Query, description = "Offset"),
     ),
@@ -102,6 +103,8 @@ pub async fn get_leaderboard(
     State(state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Support both explicit period parameter and default behavior
+    let period = params.get("period").map(|s| s.as_str()).unwrap_or("all");
     let limit: usize = params
         .get("limit")
         .and_then(|s| s.parse().ok())
@@ -112,7 +115,21 @@ pub async fn get_leaderboard(
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
 
-    match get_donation_leaderboard(&state.db_pool, limit, offset).await {
+    // Validate period if provided
+    let valid_periods = ["all", "daily", "weekly", "monthly"];
+    if !valid_periods.contains(&period) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let leaderboard = if period == "all" {
+        // Use cumulative data from user_donations table
+        get_donation_leaderboard(&state.db_pool, limit, offset).await
+    } else {
+        // Aggregate data from donation_history table by period
+        get_donation_leaderboard_by_period(&state.db_pool, period, limit, offset).await
+    };
+
+    match leaderboard {
         Ok(leaderboard) => {
             let data: Vec<_> = leaderboard
                 .into_iter()
@@ -127,6 +144,7 @@ pub async fn get_leaderboard(
 
             Ok(Json(json!({
                 "leaderboard": data,
+                "period": period,  // Include period in response for clarity
                 "pagination": { "limit": limit, "offset": offset, "count": data.len() }
             })))
         }

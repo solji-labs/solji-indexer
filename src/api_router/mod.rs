@@ -8,7 +8,7 @@ use crate::db::DbPool;
 use crate::indexer::fetcher::IndexerFetcher;
 use crate::utils::config::Config;
 
-// 子模块
+// Submodules
 pub mod amulet;
 pub mod donation;
 pub mod fortune;
@@ -28,7 +28,7 @@ pub struct AppState {
     pub db_pool: DbPool,
 }
 
-/// 创建主路由
+/// Create main router
 pub fn create_router(state: AppState) -> Router {
     Router::new()
         // Health
@@ -53,7 +53,7 @@ pub fn create_router(state: AppState) -> Router {
         .merge(ipfs::routes(state.clone()))
 }
 
-/// OpenAPI 文档汇总
+/// OpenAPI documentation summary
 #[derive(OpenApi)]
 #[openapi(
     info(

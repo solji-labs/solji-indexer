@@ -553,8 +553,8 @@ pub async fn upsert_user_donation(
             user_pubkey, total_donated, donation_count, last_donation_at, updated_at
         ) VALUES (?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
-            total_donated = VALUES(total_donated),
-            donation_count = VALUES(donation_count),
+            total_donated = total_donated + VALUES(total_donated),
+            donation_count = donation_count + VALUES(donation_count),
             last_donation_at = VALUES(last_donation_at),
             updated_at = VALUES(updated_at)
         "#,
@@ -572,33 +572,66 @@ pub async fn upsert_user_donation(
 
 pub async fn upsert_wish(
     pool: &DbPool,
-    wish_id: u64,
+    _original_wish_id: u64, // 不再使用合约传递的wish_id
     user_pubkey: &str,
     content: &str,
     likes: u32,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        r#"
-        INSERT INTO wishes (
-            wish_id, user_pubkey, content, likes, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-            likes = VALUES(likes),
-            updated_at = VALUES(updated_at)
-        "#,
-    )
-    .bind(wish_id as i64)
-    .bind(user_pubkey)
-    .bind(content)
-    .bind(likes as i32)
-    .bind(created_at)
-    .bind(updated_at)
-    .execute(pool.as_ref())
-    .await?;
+    // 直接生成唯一的wish_id，忽略合约传递的值
+    let mut wish_id = generate_unique_wish_id();
+
+    // 确保生成的ID唯一（极小概率冲突，但为了安全）
+    loop {
+        let result = sqlx::query(
+            r#"
+            INSERT INTO wishes (
+                wish_id, user_pubkey, content, likes, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            "#,
+        )
+        .bind(wish_id as i64)
+        .bind(user_pubkey)
+        .bind(content)
+        .bind(likes as i32)
+        .bind(created_at)
+        .bind(updated_at)
+        .execute(pool.as_ref())
+        .await;
+
+        match result {
+            Ok(_) => break, // 成功插入
+            Err(sqlx::Error::Database(db_err)) => {
+                // 万一还是冲突了（极小概率），重新生成
+                if db_err.message().contains("Duplicate entry") {
+                    wish_id = generate_unique_wish_id();
+                    continue;
+                } else {
+                    return Err(sqlx::Error::Database(db_err));
+                }
+            }
+            Err(e) => return Err(e),
+        }
+    }
 
     Ok(())
+}
+
+/// 生成唯一的wish_id：使用毫秒级时间戳 + 随机组件
+/// 确保在BIGINT范围内安全使用
+fn generate_unique_wish_id() -> u64 {
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64; // 使用毫秒而不是纳秒，更安全
+
+    // 添加随机组件确保唯一性 (0-999999)
+    let random_component = (timestamp % 1000000) as u64;
+
+    // 组合：时间戳 * 1000000 + 随机组件
+    // 这样可以确保唯一性，同时保持可读性
+    timestamp * 1_000_000 + random_component
 }
 
 /// wish list
@@ -1470,6 +1503,59 @@ pub async fn get_donation_leaderboard(
     Ok(entries)
 }
 
+/// get donation leaderboard data aggregated by period from donation_history table
+pub async fn get_donation_leaderboard_by_period(
+    pool: &DbPool,
+    period: &str,
+    limit: usize,
+    offset: usize,
+) -> Result<Vec<DonationLeaderboardEntry>, sqlx::Error> {
+    let date_condition = match period {
+        "daily" => "DATE(created_at) = CURDATE()",
+        "weekly" => "created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)",
+        "monthly" => "created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)",
+        _ => {
+            return Err(sqlx::Error::Protocol(
+                format!("Invalid period: {}", period).into(),
+            ))
+        }
+    };
+
+    let query = format!(
+        r#"
+        SELECT
+            user_pubkey,
+            CAST(SUM(amount) AS DOUBLE) as total_donated
+        FROM donation_history
+        WHERE {}
+        GROUP BY user_pubkey
+        ORDER BY total_donated DESC
+        LIMIT ? OFFSET ?
+        "#,
+        date_condition
+    );
+
+    let donors = sqlx::query_as::<_, (String, f64)>(&query)
+        .bind(limit as i32)
+        .bind(offset as i32)
+        .fetch_all(pool.as_ref())
+        .await?;
+
+    let entries: Vec<DonationLeaderboardEntry> = donors
+        .into_iter()
+        .enumerate()
+        .map(
+            |(index, (user_pubkey, total_donated_sol))| DonationLeaderboardEntry {
+                rank: offset + index + 1,
+                user_pubkey,
+                total_donated: total_donated_sol, // Already in SOL
+            },
+        )
+        .collect();
+
+    Ok(entries)
+}
+
 /// check if user is in top 10000 donors
 pub async fn check_user_in_top_10000_donors(
     pool: &DbPool,
@@ -2098,32 +2184,10 @@ pub async fn get_wish_by_id(pool: &DbPool, wish_id: i64) -> Result<Option<Wish>,
     .await
 }
 
-/// Insert wish like (user likes a wish)
-pub async fn insert_wish_like(
-    pool: &DbPool,
-    wish_id: i64,
-    user_pubkey: &str,
-) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        r#"
-        INSERT INTO wish_likes (wish_id, user_pubkey)
-        VALUES (?, ?)
-        ON DUPLICATE KEY UPDATE
-            created_at = created_at
-        "#,
-    )
-    .bind(wish_id)
-    .bind(user_pubkey)
-    .execute(pool.as_ref())
-    .await?;
-
-    Ok(())
-}
-
 /// Check if user has liked a specific wish
 pub async fn check_user_liked_wish(
     pool: &DbPool,
-    wish_id: i64,
+    wish_id: u64,
     user_pubkey: &str,
 ) -> Result<bool, sqlx::Error> {
     let result = sqlx::query_scalar::<_, i64>(
@@ -2132,7 +2196,7 @@ pub async fn check_user_liked_wish(
         WHERE wish_id = ? AND user_pubkey = ?
         "#,
     )
-    .bind(wish_id)
+    .bind(wish_id as i64)
     .bind(user_pubkey)
     .fetch_one(pool.as_ref())
     .await?;
@@ -2350,37 +2414,6 @@ pub async fn get_user_donation_history(
     .await
 }
 
-/// Upsert user donation badge
-pub async fn upsert_user_donation_badge(
-    pool: &DbPool,
-    user_pubkey: &str,
-    tier: &str,
-    badge_name: &str,
-    total_donated: f64,
-    nft_mint: Option<&str>,
-) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        r#"
-        INSERT INTO user_donation_badges (
-            user_pubkey, tier, badge_name, earned_at, total_donated, nft_mint
-        ) VALUES (?, ?, ?, NOW(), ?, ?)
-        ON DUPLICATE KEY UPDATE
-            badge_name = VALUES(badge_name),
-            total_donated = VALUES(total_donated),
-            nft_mint = VALUES(nft_mint)
-        "#,
-    )
-    .bind(user_pubkey)
-    .bind(tier)
-    .bind(badge_name)
-    .bind(total_donated)
-    .bind(nft_mint)
-    .execute(pool.as_ref())
-    .await?;
-
-    Ok(())
-}
-
 /// Get user's donation badges
 pub async fn get_user_donation_badges(
     pool: &DbPool,
@@ -2396,109 +2429,4 @@ pub async fn get_user_donation_badges(
     .bind(user_pubkey)
     .fetch_all(pool.as_ref())
     .await
-}
-
-/// Process donation transaction (insert history and update badges)
-pub async fn process_donation_transaction(
-    pool: &DbPool,
-    user_pubkey: &str,
-    amount_sol: f64,
-    tier: &str,
-    merit_gained: i32,
-    transaction_signature: &str,
-) -> Result<(), sqlx::Error> {
-    // Start transaction
-    let mut tx = pool.begin().await?;
-
-    // 1. Insert donation history
-    sqlx::query(
-        r#"
-        INSERT INTO donation_history (
-            user_pubkey, amount, tier, merit_gained, transaction_signature
-        ) VALUES (?, ?, ?, ?, ?)
-        "#,
-    )
-    .bind(user_pubkey)
-    .bind(amount_sol)
-    .bind(tier)
-    .bind(merit_gained)
-    .bind(transaction_signature)
-    .execute(&mut *tx)
-    .await?;
-
-    // 2. Update user donation stats
-    let total_donated_lamports = (amount_sol * 1_000_000_000.0) as i64;
-    sqlx::query(
-        r#"
-        INSERT INTO user_donations (
-            user_pubkey, total_donated, donation_count, last_donation_at, updated_at
-        ) VALUES (?, ?, 1, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE
-            total_donated = total_donated + VALUES(total_donated),
-            donation_count = donation_count + 1,
-            last_donation_at = NOW(),
-            updated_at = NOW()
-        "#,
-    )
-    .bind(user_pubkey)
-    .bind(total_donated_lamports)
-    .execute(&mut *tx)
-    .await?;
-
-    // 3. Update or insert donation badge
-    let badge_name = match tier {
-        "bronze" => "Bronze Merit Badge",
-        "silver" => "Silver Progress Badge",
-        "gold" => "Gold Guardian Badge",
-        "supreme" => "Supreme Dragon Badge",
-        _ => "Unknown Badge",
-    };
-
-    // Get current total donated for this user
-    let current_total: Option<f64> = sqlx::query_scalar(
-        "SELECT total_donated / 1000000000.0 FROM user_donations WHERE user_pubkey = ?",
-    )
-    .bind(user_pubkey)
-    .fetch_optional(&mut *tx)
-    .await?;
-
-    if let Some(total_donated) = current_total {
-        sqlx::query(
-            r#"
-            INSERT INTO user_donation_badges (
-                user_pubkey, tier, badge_name, earned_at, total_donated
-            ) VALUES (?, ?, ?, NOW(), ?)
-            ON DUPLICATE KEY UPDATE
-                badge_name = VALUES(badge_name),
-                total_donated = VALUES(total_donated)
-            "#,
-        )
-        .bind(user_pubkey)
-        .bind(tier)
-        .bind(badge_name)
-        .bind(total_donated)
-        .execute(&mut *tx)
-        .await?;
-    }
-
-    // 4. Update user state with merit points
-    sqlx::query(
-        r#"
-        INSERT INTO user_states (
-            user_pubkey, merit, updated_at, created_at
-        ) VALUES (?, ?, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE
-            merit = merit + VALUES(merit),
-            updated_at = NOW()
-        "#,
-    )
-    .bind(user_pubkey)
-    .bind(merit_gained as i64)
-    .execute(&mut *tx)
-    .await?;
-
-    // Commit transaction
-    tx.commit().await?;
-
-    Ok(())
 }
