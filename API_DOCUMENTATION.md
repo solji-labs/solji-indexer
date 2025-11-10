@@ -19,7 +19,8 @@
 
 - `GET /api/incense/types` - 获取香火类型
 - `GET /api/incense/can-burn` - 检查是否可以燃烧香火
-- `GET /api/incense/user/{user_pubkey}/burn-count` - 获取用户香火燃烧次数
+- `GET /api/incense/user/{user_pubkey}/burn-count` - 获取用户香火燃烧次数（所有香型）
+- `GET /api/incense/user/{user_pubkey}/burn-count/{incense_type}` - 获取用户指定香型的燃烧次数
 - `GET /api/incense/user/{user_pubkey}/nfts` - 获取用户香火 NFT
 - `GET /api/incense/user/{user_pubkey}/history` - 获取用户香火燃烧历史
 - `GET /api/incense/leaderboard` - 香火排行榜
@@ -271,6 +272,33 @@ GET /api/incense/user/{user_pubkey}/burn-count
   "max_daily_limit": 10
 }
 ```
+
+### 用户指定香型燃烧次数
+
+```
+GET /api/incense/user/{user_pubkey}/burn-count/{incense_type}
+```
+
+**路径参数：**
+
+- `user_pubkey`: 用户公钥
+- `incense_type`: 香火类型 ID (数字，0-5)
+
+**响应：**
+
+```json
+{
+  "user_pubkey": "UserPubkey...",
+  "incense_type": 1,
+  "burn_count": 5,
+  "max_daily_limit": 10
+}
+```
+
+**错误响应：**
+
+- `400`: 无效的香火类型参数
+- `500`: 服务器内部错误
 
 ## 许愿相关接口
 

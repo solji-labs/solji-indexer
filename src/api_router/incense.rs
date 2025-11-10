@@ -13,7 +13,8 @@ use std::collections::HashMap;
 use super::{models::IncenseTypeInfo, AppState};
 use crate::db::{
     check_daily_incense_limit, get_parsed_incense_leaderboard_by_period,
-    get_user_incense_burn_count, get_user_incense_burn_history, get_user_incense_nfts,
+    get_user_incense_burn_count, get_user_incense_burn_count_by_type,
+    get_user_incense_burn_history, get_user_incense_nfts,
 };
 
 pub fn routes(state: AppState) -> Router {
@@ -23,6 +24,10 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/api/incense/user/{user_pubkey}/burn-count",
             get(get_user_burn_count),
+        )
+        .route(
+            "/api/incense/user/{user_pubkey}/burn-count/{incense_type}",
+            get(get_user_burn_count_by_type),
         )
         .route("/api/incense/user/{user_pubkey}/nfts", get(get_user_nfts))
         .route(
@@ -192,6 +197,58 @@ pub async fn get_user_burn_count(
         Ok(burn_counts) => Ok(Json(json!({
             "user_pubkey": user_pubkey,
             "burn_counts": burn_counts,
+            "max_daily_limit": 10
+        }))),
+        Err(e) => {
+            eprintln!("Database error: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+/// Get user incense burn count by type
+///
+/// Returns the daily burn count for a specific incense type for a specific user
+#[utoipa::path(
+    get,
+    path = "/api/incense/user/{user_pubkey}/burn-count/{incense_type}",
+    params(
+        ("user_pubkey" = String, Path, description = "User public key"),
+        ("incense_type" = i32, Path, description = "Incense type ID"),
+    ),
+    responses(
+        (status = 200, description = "User burn count for specific incense type", body = serde_json::Value,
+            example = json!({
+                "user_pubkey": "5xot9PdcigoDgdXJYuSGKmHBhcQn3WHPh1EwLyBNxmNw",
+                "incense_type": 1,
+                "burn_count": 5,
+                "max_daily_limit": 10
+            })
+        ),
+        (status = 400, description = "Invalid incense type parameter"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Incense"
+)]
+pub async fn get_user_burn_count_by_type(
+    State(state): State<AppState>,
+    Path((user_pubkey, incense_type_str)): Path<(String, String)>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let incense_type: i32 = incense_type_str
+        .parse()
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    match get_user_incense_burn_count_by_type(&state.db_pool, &user_pubkey, incense_type).await {
+        Ok(Some(burn_count)) => Ok(Json(json!({
+            "user_pubkey": user_pubkey,
+            "incense_type": incense_type,
+            "burn_count": burn_count.burn_count,
+            "max_daily_limit": 10
+        }))),
+        Ok(None) => Ok(Json(json!({
+            "user_pubkey": user_pubkey,
+            "incense_type": incense_type,
+            "burn_count": 0,
             "max_daily_limit": 10
         }))),
         Err(e) => {

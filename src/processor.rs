@@ -473,18 +473,20 @@ async fn handle_incense_burned(
     let user_str = user.to_string();
     let created_at = get_current_cst_time();
 
-    // // Check daily limit before processing
-    // let can_burn =
-    //     crate::db::check_daily_incense_limit(&pool, &user_str, incense_id as i32, amount as i32)
-    //         .await?;
+    // Check daily limit before processing
+    let can_burn =
+        crate::db::check_daily_incense_limit(&pool, &user_str, incense_id as i32, amount as i32)
+            .await?;
 
-    // if !can_burn {
-    //     println!(
-    //         "Daily limit exceeded for user {} incense type {}, amount {}",
-    //         user_str, incense_id, amount
-    //     );
-
-    // }
+    if !can_burn {
+        println!(
+            "Daily limit exceeded for user {} incense type {}, amount {}",
+            user_str, incense_id, amount
+        );
+        // Note: Since the contract should have prevented this, this might indicate
+        // a synchronization issue or contract bug. We'll still process the event
+        // but log the discrepancy.
+    }
 
     // Calculate rewards based on incense type (matching the product specifications)
     let (merit_gained, incense_points_gained) = match incense_id {

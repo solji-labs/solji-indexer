@@ -1901,11 +1901,12 @@ pub async fn update_user_incense_and_history(
     .await?;
 
     // 2. Update daily burn count
+    let today = chrono::Utc::now().date_naive();
     sqlx::query(
         r#"
         INSERT INTO daily_incense_burn_count (
             user_pubkey, incense_type, burn_count, date, updated_at
-        ) VALUES (?, ?, ?, CURDATE(), NOW())
+        ) VALUES (?, ?, ?, ?, NOW())
         ON DUPLICATE KEY UPDATE
             burn_count = burn_count + VALUES(burn_count),
             updated_at = NOW()
@@ -1914,6 +1915,7 @@ pub async fn update_user_incense_and_history(
     .bind(user_pubkey)
     .bind(incense_type)
     .bind(incense_amount)
+    .bind(today)
     .execute(&mut *tx)
     .await?;
 
@@ -2242,15 +2244,39 @@ pub async fn get_user_incense_burn_count(
     pool: &DbPool,
     user_pubkey: &str,
 ) -> Result<Vec<DailyIncenseBurnCount>, sqlx::Error> {
+    let today = chrono::Utc::now().date_naive();
+
     sqlx::query_as::<_, DailyIncenseBurnCount>(
         r#"
         SELECT * FROM daily_incense_burn_count
-        WHERE user_pubkey = ? AND date = CURDATE()
+        WHERE user_pubkey = ? AND date = ?
         ORDER BY incense_type
         "#,
     )
     .bind(user_pubkey)
+    .bind(today)
     .fetch_all(pool.as_ref())
+    .await
+}
+
+/// Get user's daily incense burn count for a specific incense type
+pub async fn get_user_incense_burn_count_by_type(
+    pool: &DbPool,
+    user_pubkey: &str,
+    incense_type: i32,
+) -> Result<Option<DailyIncenseBurnCount>, sqlx::Error> {
+    let today = chrono::Utc::now().date_naive();
+
+    sqlx::query_as::<_, DailyIncenseBurnCount>(
+        r#"
+        SELECT * FROM daily_incense_burn_count
+        WHERE user_pubkey = ? AND incense_type = ? AND date = ?
+        "#,
+    )
+    .bind(user_pubkey)
+    .bind(incense_type)
+    .bind(today)
+    .fetch_optional(pool.as_ref())
     .await
 }
 
