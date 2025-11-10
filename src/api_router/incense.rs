@@ -291,7 +291,7 @@ pub async fn get_user_nfts(
 
 /// Get user incense burn history
 ///
-/// Returns the burn history for a specific user with pagination
+/// Returns the burn history for a specific user with pagination, including NFT information
 #[utoipa::path(
     get,
     path = "/api/incense/user/{user_pubkey}/history",
@@ -300,7 +300,28 @@ pub async fn get_user_nfts(
         ("limit" = Option<i32>, Query, description = "Number of records to return (max 100)"),
     ),
     responses(
-        (status = 200, description = "User burn history", body = serde_json::Value),
+        (status = 200, description = "User burn history with NFT info", body = serde_json::Value,
+            example = json!({
+                "user_pubkey": "5xot9PdcigoDgdXJYuSGKmHBhcQn3WHPh1EwLyBNxmNw",
+                "history": [
+                    {
+                        "id": 1,
+                        "incense_type": 0,
+                        "incense_type_id": "basic",
+                        "incense_name": "清香",
+                        "incense_name_en": "Basic Incense",
+                        "incense_image": "/traditional-incense-stick-glowing.jpg",
+                        "user_serial": 1,
+                        "incense_amount": 1,
+                        "merit_gained": 10,
+                        "incense_points_gained": 100,
+                        "transaction_signature": "签名",
+                        "created_at": "2025-01-01T10:00:00Z"
+                    }
+                ],
+                "count": 1
+            })
+        ),
         (status = 500, description = "Internal server error")
     ),
     tag = "Incense"
@@ -318,17 +339,85 @@ pub async fn get_user_history(
 
     match get_user_incense_burn_history(&state.db_pool, &user_pubkey, limit).await {
         Ok(history) => {
+            // Get incense type mapping with IPFS images from contract
+            let incense_types = vec![
+                (
+                    0,
+                    "basic",
+                    "清香",
+                    "Clear Incense",
+                    "https://solji.mypinata.cloud/ipfs/QmfE3pH44ef4iHHS7Vv81aDomY7yTzUtPnKxcBtZXyMkh4",
+                ),
+                (
+                    1,
+                    "sandalwood",
+                    "檀香",
+                    "Sandalwood",
+                    "https://solji.mypinata.cloud/ipfs/QmYBz666XhqdQtizZYgg4C6EH3cKKKDPRdNDZZ4SEcAxDD",
+                ),
+                (
+                    2,
+                    "dragon",
+                    "龙涎香",
+                    "Ambergris Incense",
+                    "https://solji.mypinata.cloud/ipfs/QmUxi64HN4JZh11nztj7mQ3mnwKnadmuoStWR9cfkEqKNo",
+                ),
+                (
+                    3,
+                    "supreme",
+                    "太上灵香",
+                    "Supreme Spirit Incense",
+                    "https://solji.mypinata.cloud/ipfs/QmPieVQDrCXs2hCB8SxpKGc3Rnh32M1eGCrjY4EbqguXQM",
+                ),
+                (
+                    4,
+                    "secret",
+                    "秘制香",
+                    "Secret Brew Incense",
+                    "https://solji.mypinata.cloud/ipfs/bafkreiesfvlpyunybdl22oogzj2kxaado3hpblwqmd3q45pcu4imyzj3ha",
+                ),
+                (
+                    5,
+                    "celestial",
+                    "天界香",
+                    "Celestial Incense",
+                    "https://solji.mypinata.cloud/ipfs/bafkreiesfvlpyunybdl22oogzj2kxaado3hpblwqmd3q45pcu4imyzj3ha",
+                ),
+            ];
+
             let history_data: Vec<_> = history
                 .into_iter()
-                .map(|r| {
+                .enumerate()
+                .map(|(index, r)| {
+                    // Find incense type info
+                    let (incense_type_id, incense_name, incense_name_en, incense_image) =
+                        incense_types
+                            .iter()
+                            .find(|(id, _, _, _, _)| *id == r.incense_type as i32)
+                            .map(|(_, id, name, name_en, image)| (*id, *name, *name_en, *image))
+                            .unwrap_or((
+                                "basic",
+                                "清香",
+                                "Basic Incense",
+                                "/traditional-incense-stick-glowing.jpg",
+                            ));
+
+                    // Calculate user serial (1-based index for this user)
+                    let user_serial = index + 1;
+
                     json!({
                         "id": r.id,
                         "incense_type": r.incense_type,
+                        "incenseId": incense_type_id,
+                        "name": incense_name,
+                        "nameEn": incense_name_en,
+                        "image": incense_image,
+                        "serial": user_serial,
                         "incense_amount": r.incense_amount,
-                        "merit_gained": r.merit_gained,
+                        "meritPoints": r.merit_gained,
                         "incense_points_gained": r.incense_points_gained,
-                        "transaction_signature": r.transaction_signature,
-                        "created_at": r.created_at.to_rfc3339()
+                        "transactionSignature": r.transaction_signature,
+                        "mintedAt": r.created_at.to_rfc3339()
                     })
                 })
                 .collect();

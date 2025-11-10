@@ -145,7 +145,7 @@ GET /api/temple/level
 }
 ```
 
-### 香火相关接口
+## 香火相关接口
 
 ### 获取香火类型
 
@@ -161,10 +161,10 @@ GET /api/incense/types
     {
       "id": "basic",
       "name": "清香",
-      "name_en": "Basic Incense",
+      "name_en": "Clear Incense",
       "price": 0.01,
-      "merit_points": 1,
-      "description": "Simple and pure, for daily devotion",
+      "merit_points": 10,
+      "description": "Simple and pure, for daily devotion. Drops amulets with chance.",
       "image": "/traditional-incense-stick-glowing.jpg",
       "daily_limit": 10
     },
@@ -173,29 +173,49 @@ GET /api/incense/types
       "name": "檀香",
       "name_en": "Sandalwood",
       "price": 0.05,
-      "merit_points": 5,
-      "description": "Premium sandalwood for deeper meditation",
+      "merit_points": 65,
+      "description": "Premium sandalwood for deeper meditation. Unlocks dynamic NFT incense effects.",
       "image": "/sandalwood-incense-with-golden-glow.jpg",
       "daily_limit": 10
     },
     {
       "id": "dragon",
-      "name": "龙香",
-      "name_en": "Dragon Incense",
+      "name": "龙涎香",
+      "name_en": "Ambergris Incense",
       "price": 0.1,
-      "merit_points": 10,
-      "description": "Rare dragon incense for great fortune",
+      "merit_points": 1200,
+      "description": "Rare ambergris incense for great fortune. Can be used to upgrade temples.",
       "image": "/mystical-dragon-incense-with-purple-smoke.jpg",
       "daily_limit": 10
     },
     {
       "id": "supreme",
-      "name": "至尊香",
-      "name_en": "Supreme Incense",
+      "name": "太上灵香",
+      "name_en": "Supreme Spirit Incense",
       "price": 0.3,
-      "merit_points": 30,
-      "description": "The ultimate offering for enlightenment",
+      "merit_points": 3400,
+      "description": "The ultimate offering for enlightenment. Unlocks limited amulet NFTs + extra rewards.",
       "image": "/supreme-golden-incense-with-rainbow-aura.jpg",
+      "daily_limit": 10
+    },
+    {
+      "id": "secret",
+      "name": "秘制香",
+      "name_en": "Secret Brew Incense",
+      "price": 5.0,
+      "merit_points": 12000,
+      "description": "Exclusive incense obtained through donations (5 SOL for 10 sticks). Unlocks Buddha NFTs.",
+      "image": "https://solji.mypinata.cloud/ipfs/bafkreiesfvlpyunybdl22oogzj2kxaado3hpblwqmd3q45pcu4imyzj3ha",
+      "daily_limit": 10
+    },
+    {
+      "id": "celestial",
+      "name": "天界香",
+      "name_en": "Celestial Incense",
+      "price": 50.0,
+      "merit_points": 300000,
+      "description": "Heavenly incense obtained through donations (50 SOL for 5 sticks). Unlocks Buddha NFTs.",
+      "image": "https://solji.mypinata.cloud/ipfs/bafkreiesfvlpyunybdl22oogzj2kxaado3hpblwqmd3q45pcu4imyzj3ha",
       "daily_limit": 10
     }
   ]
@@ -299,6 +319,74 @@ GET /api/incense/user/{user_pubkey}/burn-count/{incense_type}
 
 - `400`: 无效的香火类型参数
 - `500`: 服务器内部错误
+
+### 获取用户香火燃烧历史
+
+```
+GET /api/incense/user/{user_pubkey}/history?limit=20
+```
+
+**路径参数：**
+
+- `user_pubkey`: 用户公钥
+
+**查询参数：**
+
+- `limit`: 返回记录数量 (默认20, 最大100)
+
+**响应：**
+
+```json
+{
+  "user_pubkey": "5xot9PdcigoDgdXJYuSGKmHBhcQn3WHPh1EwLyBNxmNw",
+  "history": [
+    {
+      "id": 1,
+      "incense_type": 0,
+      "incenseId": "basic",
+      "name": "清香",
+      "nameEn": "Clear Incense",
+      "image": "https://solji.mypinata.cloud/ipfs/QmfE3pH44ef4iHHS7Vv81aDomY7yTzUtPnKxcBtZXyMkh4",
+      "serial": 1,
+      "incense_amount": 1,
+      "meritPoints": 10,
+      "incense_points_gained": 100,
+      "transactionSignature": "签名",
+      "mintedAt": "2025-01-01T10:00:00Z"
+    },
+    {
+      "id": 2,
+      "incense_type": 1,
+      "incenseId": "sandalwood",
+      "name": "檀香",
+      "nameEn": "Sandalwood",
+      "image": "https://solji.mypinata.cloud/ipfs/QmYBz666XhqdQtizZYgg4C6EH3cKKKDPRdNDZZ4SEcAxDD",
+      "serial": 2,
+      "incense_amount": 1,
+      "meritPoints": 65,
+      "incense_points_gained": 600,
+      "transactionSignature": "签名2",
+      "mintedAt": "2025-01-01T11:00:00Z"
+    }
+  ],
+  "count": 2
+}
+```
+
+**字段说明：**
+
+- `id`: 记录ID
+- `incense_type`: 香火类型数字ID (0-5)
+- `incenseId`: 香火类型字符串ID
+- `name`: 中文名称
+- `nameEn`: 英文名称
+- `image`: IPFS图片URL
+- `serial`: 用户NFT连续编号
+- `incense_amount`: 燃烧数量
+- `meritPoints`: 获得功德点数
+- `incense_points_gained`: 获得香火点数
+- `transactionSignature`: 交易签名
+- `mintedAt`: NFT铸造时间
 
 ## 许愿相关接口
 
