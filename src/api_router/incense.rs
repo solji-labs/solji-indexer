@@ -346,42 +346,28 @@ pub async fn get_user_history(
                     "basic",
                     "清香",
                     "Clear Incense",
-                    "https://solji.mypinata.cloud/ipfs/QmfE3pH44ef4iHHS7Vv81aDomY7yTzUtPnKxcBtZXyMkh4",
+                    "https://solji.mypinata.cloud/ipfs/bafkreicgzjv3cw3bugnkkwftn35vg76ni5h3akufzorxj2jufbm53onbvu",
                 ),
                 (
                     1,
                     "sandalwood",
                     "檀香",
                     "Sandalwood",
-                    "https://solji.mypinata.cloud/ipfs/QmYBz666XhqdQtizZYgg4C6EH3cKKKDPRdNDZZ4SEcAxDD",
+                    "https://solji.mypinata.cloud/ipfs/bafkreidjl5ehfv55pw6mrwzi44qjjnax5x7hl62xdhzo4i7hdauc4z2ybm",
                 ),
                 (
                     2,
                     "dragon",
                     "龙涎香",
                     "Ambergris Incense",
-                    "https://solji.mypinata.cloud/ipfs/QmUxi64HN4JZh11nztj7mQ3mnwKnadmuoStWR9cfkEqKNo",
+                    "https://solji.mypinata.cloud/ipfs/bafkreiesfvlpyunybdl22oogzj2kxaado3hpblwqmd3q45pcu4imyzj3ha",
                 ),
                 (
                     3,
                     "supreme",
                     "太上灵香",
                     "Supreme Spirit Incense",
-                    "https://solji.mypinata.cloud/ipfs/QmPieVQDrCXs2hCB8SxpKGc3Rnh32M1eGCrjY4EbqguXQM",
-                ),
-                (
-                    4,
-                    "secret",
-                    "秘制香",
-                    "Secret Brew Incense",
-                    "https://solji.mypinata.cloud/ipfs/bafkreiesfvlpyunybdl22oogzj2kxaado3hpblwqmd3q45pcu4imyzj3ha",
-                ),
-                (
-                    5,
-                    "celestial",
-                    "天界香",
-                    "Celestial Incense",
-                    "https://solji.mypinata.cloud/ipfs/bafkreiesfvlpyunybdl22oogzj2kxaado3hpblwqmd3q45pcu4imyzj3ha",
+                    "https://solji.mypinata.cloud/ipfs/bafkreie7u6sexzb6gzcslih7avko6fkvbxn2qtry36ycwpoxeobhhtlzwu",
                 ),
             ];
 
@@ -399,7 +385,7 @@ pub async fn get_user_history(
                                 "basic",
                                 "清香",
                                 "Basic Incense",
-                                "/traditional-incense-stick-glowing.jpg",
+                                "https://solji.mypinata.cloud/ipfs/bafkreicgzjv3cw3bugnkkwftn35vg76ni5h3akufzorxj2jufbm53onbvu",
                             ));
 
                     // Calculate user serial (1-based index for this user)
