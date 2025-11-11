@@ -55,6 +55,7 @@ fn cid_to_content_hash(cid: &str) -> Result<[u8; 32], String> {
 async fn get_wishes_with_ipfs_content_and_likes_from_pairs(
     wish_likes: Vec<(crate::db::models::Wish, bool)>,
     state: &AppState,
+    viewer_pubkey: Option<&str>,
 ) -> Vec<serde_json::Value> {
     let wishes: Vec<crate::db::models::Wish> = wish_likes.iter().map(|(w, _)| w.clone()).collect();
 
@@ -241,6 +242,7 @@ async fn get_wishes_with_ipfs_content_and_likes_from_pairs(
                 "content": content,
                 "likes": w.likes,
                 "is_liked": is_liked,
+                "self_wish": viewer_pubkey.map_or(false, |v| v == w.user_pubkey),
                 "created_at": w.created_at.to_rfc3339()
             })
         })
@@ -282,6 +284,7 @@ pub fn routes(state: AppState) -> Router {
                         "content": "May all beings be happy",
                         "likes": 42,
                         "is_liked": false,
+                        "self_wish": false,
                         "created_at": "2025-01-01T00:00:00Z"
                     }
                 ],
@@ -318,8 +321,12 @@ pub async fn get_wishes(
 
     match get_wishes_with_user_likes(&state.db_pool, user_pubkey.as_deref(), limit, offset).await {
         Ok(wish_likes) => {
-            let wishes_data =
-                get_wishes_with_ipfs_content_and_likes_from_pairs(wish_likes, &state).await;
+            let wishes_data = get_wishes_with_ipfs_content_and_likes_from_pairs(
+                wish_likes,
+                &state,
+                user_pubkey.as_deref(),
+            )
+            .await;
 
             Ok(Json(json!({
                 "wishes": wishes_data,
@@ -358,6 +365,7 @@ pub async fn get_wishes(
                         "content": "Public wish content",
                         "likes": 10,
                         "is_liked": false,
+                        "self_wish": false,
                         "created_at": "2025-01-01T00:00:00Z"
                     }
                 ],
@@ -396,8 +404,12 @@ pub async fn get_public_wishes(
         .await
     {
         Ok(wish_likes) => {
-            let wishes_data =
-                get_wishes_with_ipfs_content_and_likes_from_pairs(wish_likes, &state).await;
+            let wishes_data = get_wishes_with_ipfs_content_and_likes_from_pairs(
+                wish_likes,
+                &state,
+                user_pubkey.as_deref(),
+            )
+            .await;
 
             Ok(Json(json!({
                 "wishes": wishes_data,
@@ -465,8 +477,12 @@ pub async fn get_user_wishes(
 
     match get_user_wishes_with_likes(&state.db_pool, &user_pubkey, limit, offset).await {
         Ok(wish_likes) => {
-            let wishes_data =
-                get_wishes_with_ipfs_content_and_likes_from_pairs(wish_likes, &state).await;
+            let wishes_data = get_wishes_with_ipfs_content_and_likes_from_pairs(
+                wish_likes,
+                &state,
+                viewer_pubkey.as_deref(),
+            )
+            .await;
 
             Ok(Json(json!({
                 "user_pubkey": user_pubkey,

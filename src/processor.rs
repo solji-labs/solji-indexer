@@ -227,7 +227,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
     println!("Worker #{} finished.", id);
 }
 
-/// Handle DonationCompleted event (now includes all rewards processing)
+/// Handle DonationCompleted event
 async fn handle_donation_completed(
     pool: &DbPool,
     user: solana_sdk::pubkey::Pubkey,
