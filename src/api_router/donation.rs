@@ -103,8 +103,11 @@ pub async fn get_leaderboard(
     State(state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    // Support both explicit period parameter and default behavior
-    let period = params.get("period").map(|s| s.as_str()).unwrap_or("all");
+    let period_raw = params.get("period").map(|s| s.as_str()).unwrap_or("all");
+    let period = match period_raw {
+        "all" | "daily" | "weekly" | "monthly" => period_raw,
+        _ => "all",
+    };
     let limit: usize = params
         .get("limit")
         .and_then(|s| s.parse().ok())
@@ -114,12 +117,6 @@ pub async fn get_leaderboard(
         .get("offset")
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
-
-    // Validate period if provided
-    let valid_periods = ["all", "daily", "weekly", "monthly"];
-    if !valid_periods.contains(&period) {
-        return Err(StatusCode::BAD_REQUEST);
-    }
 
     let leaderboard = if period == "all" {
         // Use cumulative data from user_donations table
