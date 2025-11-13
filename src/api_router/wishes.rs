@@ -237,7 +237,7 @@ async fn get_wishes_with_ipfs_content_and_likes_from_pairs(
             };
 
             json!({
-                "wish_id": w.wish_id,
+                "wish_id": w.wish_id.to_string(),
                 "user_pubkey": w.user_pubkey,
                 "content": content,
                 "likes": w.likes,
@@ -259,7 +259,7 @@ pub fn routes(state: AppState) -> Router {
             get(get_user_daily_count),
         )
         .route("/api/wish-tower/{user_pubkey}", get(get_user_tower))
-        .route("/api/wishes/{wish_id}/like", post(like_wish))
+        .route("/api/wishes/{wish_id_str}/like", post(like_wish))
         .with_state(state)
 }
 
@@ -584,20 +584,21 @@ pub async fn get_user_tower(
 /// Records user like for a specific wish and increments the like count
 #[utoipa::path(
     post,
-    path = "/api/wishes/{wish_id}/like",
+    path = "/api/wishes/{wish_id_str}/like",
     params(
-        ("wish_id" = u64, Path, description = "Wish ID to like", example = 12345),
+        ("wish_id_str" = String, Path, description = "Wish ID to like (as string)", example = "12345"),
     ),
     request_body(content = serde_json::Value, description = "Request headers should include x-user-pubkey"),
     responses(
         (status = 200, description = "Wish liked successfully", body = serde_json::Value,
             example = json!({
-                "wish_id": 12345,
+                "wish_id": "12345",
                 "likes": 43,
                 "success": true
             })
         ),
-        (status = 400, description = "Bad request - missing x-user-pubkey header"),
+        (status = 400, description = "Bad request - missing x-user-pubkey header or invalid wish_id"),
+        (status = 404, description = "Wish not found"),
         (status = 409, description = "Already liked this wish"),
         (status = 500, description = "Internal server error")
     ),
@@ -605,9 +606,14 @@ pub async fn get_user_tower(
 )]
 pub async fn like_wish(
     State(state): State<AppState>,
-    Path(wish_id): Path<u64>,
+    Path(wish_id_str): Path<String>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Parse wish_id from string to u64
+    let wish_id: u64 = match wish_id_str.parse() {
+        Ok(id) => id,
+        Err(_) => return Err(StatusCode::BAD_REQUEST),
+    };
     let user_pubkey = match headers.get("x-user-pubkey") {
         Some(header_value) => match header_value.to_str() {
             Ok(pubkey) => pubkey,
@@ -732,7 +738,7 @@ pub async fn like_wish(
     }
 
     Ok(Json(json!({
-        "wish_id": wish_id,
+        "wish_id": wish_id.to_string(),
         "likes": new_likes,
         "success": true
     })))
