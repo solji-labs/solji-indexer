@@ -100,6 +100,16 @@ impl IndexerFetcher {
                     continue;
                 }
 
+                // Extract transaction signature
+                let transaction_signature = json
+                    .get("params")
+                    .and_then(|p| p.get("result"))
+                    .and_then(|r| r.get("value"))
+                    .and_then(|v| v.get("signature"))
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
                 // Parse notification messages with logs
                 if let Some(log_data) = json
                     .get("params")
@@ -113,7 +123,7 @@ impl IndexerFetcher {
                         if let Some(log_str) = log_str_val.as_str() {
                             println!("Processing log: {}", log_str);
                             // Core step: Parse and send to Channel
-                            self.parse_and_send(log_str).await;
+                            self.parse_and_send(log_str, &transaction_signature).await;
                         }
                     }
                 } else {
@@ -128,9 +138,57 @@ impl IndexerFetcher {
     }
 
     // 4. Parse and send function
-    async fn parse_and_send(&self, log_str: &str) {
+    async fn parse_and_send(&self, log_str: &str, transaction_signature: &str) {
         // Use external module for parsing
-        if let Some(parsed_event) = try_parse_event(log_str) {
+        if let Some(mut parsed_event) = try_parse_event(log_str) {
+            // Add transaction signature to the event
+            match &mut parsed_event {
+                ProgramEvent::DonationCompleted {
+                    transaction_signature: ts,
+                    ..
+                } => *ts = transaction_signature.to_string(),
+                ProgramEvent::RewardsProcessed {
+                    transaction_signature: ts,
+                    ..
+                } => *ts = transaction_signature.to_string(),
+                ProgramEvent::DonationNFTMinted {
+                    transaction_signature: ts,
+                    ..
+                } => *ts = transaction_signature.to_string(),
+                ProgramEvent::FortuneDrawn {
+                    transaction_signature: ts,
+                    ..
+                } => *ts = transaction_signature.to_string(),
+                ProgramEvent::WishCreated {
+                    transaction_signature: ts,
+                    ..
+                } => *ts = transaction_signature.to_string(),
+                ProgramEvent::WishTowerUpdated {
+                    transaction_signature: ts,
+                    ..
+                } => *ts = transaction_signature.to_string(),
+                ProgramEvent::IncenseBurned {
+                    transaction_signature: ts,
+                    ..
+                } => *ts = transaction_signature.to_string(),
+                ProgramEvent::AmuletDropped {
+                    transaction_signature: ts,
+                    ..
+                } => *ts = transaction_signature.to_string(),
+                ProgramEvent::AmuletMinted {
+                    transaction_signature: ts,
+                    ..
+                } => *ts = transaction_signature.to_string(),
+                ProgramEvent::ShopConfigUpdated {
+                    transaction_signature: ts,
+                    ..
+                } => *ts = transaction_signature.to_string(),
+                ProgramEvent::FortuneNFTMinted {
+                    transaction_signature: ts,
+                    ..
+                } => *ts = transaction_signature.to_string(),
+            }
+
             // Send parsed result to Worker thread
             if let Err(e) = self.event_sender.send(parsed_event).await {
                 eprintln!("Failed to send event to channel: Channel closed or full. Worker failure? Error: {:?}", e);

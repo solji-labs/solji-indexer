@@ -9,6 +9,56 @@ fn get_current_cst_time() -> chrono::DateTime<chrono::Utc> {
     chrono::Utc::now() + chrono::Duration::hours(8)
 }
 
+/// Extract event type and transaction signature from ProgramEvent
+fn get_event_info(event: &ProgramEvent) -> (&str, String) {
+    match event {
+        ProgramEvent::DonationCompleted {
+            transaction_signature,
+            ..
+        } => ("DonationCompleted", transaction_signature.clone()),
+        ProgramEvent::RewardsProcessed {
+            transaction_signature,
+            ..
+        } => ("RewardsProcessed", transaction_signature.clone()),
+        ProgramEvent::DonationNFTMinted {
+            transaction_signature,
+            ..
+        } => ("DonationNFTMinted", transaction_signature.clone()),
+        ProgramEvent::FortuneDrawn {
+            transaction_signature,
+            ..
+        } => ("FortuneDrawn", transaction_signature.clone()),
+        ProgramEvent::WishCreated {
+            transaction_signature,
+            ..
+        } => ("WishCreated", transaction_signature.clone()),
+        ProgramEvent::WishTowerUpdated {
+            transaction_signature,
+            ..
+        } => ("WishTowerUpdated", transaction_signature.clone()),
+        ProgramEvent::IncenseBurned {
+            transaction_signature,
+            ..
+        } => ("IncenseBurned", transaction_signature.clone()),
+        ProgramEvent::AmuletDropped {
+            transaction_signature,
+            ..
+        } => ("AmuletDropped", transaction_signature.clone()),
+        ProgramEvent::AmuletMinted {
+            transaction_signature,
+            ..
+        } => ("AmuletMinted", transaction_signature.clone()),
+        ProgramEvent::ShopConfigUpdated {
+            transaction_signature,
+            ..
+        } => ("ShopConfigUpdated", transaction_signature.clone()),
+        ProgramEvent::FortuneNFTMinted {
+            transaction_signature,
+            ..
+        } => ("FortuneNFTMinted", transaction_signature.clone()),
+    }
+}
+
 /// Start event processor worker
 pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEvent>, pool: DbPool) {
     println!("Worker #{} started.", id);
@@ -16,6 +66,34 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
     // Worker loop: continuously receive events from channel
     while let Some(event) = receiver.recv().await {
         // Core: call database handling functions for each event type
+        // Check for duplicate events
+        let (event_type, transaction_signature) = get_event_info(&event);
+
+        // Check if this transaction has already been processed
+        match crate::db::is_transaction_processed(&pool, &transaction_signature, event_type).await {
+            Ok(true) => {
+                println!(
+                    "Skipping duplicate event: {} for transaction {}",
+                    event_type, transaction_signature
+                );
+                continue;
+            }
+            Ok(false) => {
+                // Mark as processed
+                if let Err(e) =
+                    crate::db::mark_transaction_processed(&pool, &transaction_signature, event_type)
+                        .await
+                {
+                    eprintln!("Failed to mark transaction as processed: {:?}", e);
+                    continue;
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to check transaction processing status: {:?}", e);
+                continue;
+            }
+        }
+
         match event {
             ProgramEvent::DonationCompleted {
                 user,
@@ -23,6 +101,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                 total_donated,
                 level,
                 timestamp,
+                ..
             } => {
                 if let Err(err) =
                     handle_donation_completed(&pool, user, amount, total_donated, level, timestamp)
@@ -39,6 +118,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                 merit_reward,
                 incense_points_reward,
                 timestamp,
+                ..
             } => {
                 if let Err(err) = handle_rewards_processed(
                     &pool,
@@ -61,6 +141,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                 level,
                 serial_number,
                 timestamp,
+                ..
             } => {
                 if let Err(err) = handle_donation_nft_minted(
                     &pool,
@@ -84,6 +165,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                 used_merit,
                 amulet_dropped,
                 timestamp,
+                ..
             } => {
                 if let Err(err) = handle_fortune_drawn(
                     &pool,
@@ -105,6 +187,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                 is_anonymous,
                 amulet_dropped,
                 timestamp,
+                ..
             } => {
                 if let Err(err) = handle_wish_created(
                     &pool,
@@ -125,6 +208,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                 wish_count,
                 level,
                 timestamp,
+                ..
             } => {
                 if let Err(err) =
                     handle_wish_tower_updated(&pool, user, wish_count, level, timestamp).await
@@ -140,6 +224,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                 incense_id,
                 amount,
                 timestamp,
+                ..
             } => {
                 if let Err(err) =
                     handle_incense_burned(&pool, user, incense_id, amount, timestamp).await
@@ -152,6 +237,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                 amulet_type,
                 source,
                 timestamp,
+                ..
             } => {
                 if let Err(err) =
                     handle_amulet_dropped(&pool, user, amulet_type, source, timestamp).await
@@ -165,6 +251,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                 source,
                 serial_number,
                 timestamp,
+                ..
             } => {
                 if let Err(err) =
                     handle_amulet_minted(&pool, user, amulet_mint, source, serial_number, timestamp)
@@ -179,6 +266,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                 owner,
                 shop_items,
                 timestamp,
+                ..
             } => {
                 if let Err(err) = handle_shop_config_updated(
                     &pool,
@@ -203,6 +291,7 @@ pub async fn start_event_processor(id: usize, mut receiver: Receiver<ProgramEven
                 merit_cost,
                 serial_number,
                 timestamp,
+                ..
             } => {
                 if let Err(err) = handle_fortune_nft_minted(
                     &pool,
@@ -303,7 +392,7 @@ async fn handle_donation_completed(
     match crate::db::upsert_user_state_by_donation(
         pool,
         &user_str,
-        merit_gained as u64,
+        merit_gained as i64,
         0,      // no incense points
         amount, // donation amount in lamports
     )
@@ -339,7 +428,7 @@ async fn handle_rewards_processed(
     crate::db::upsert_user_state_by_donation(
         pool,
         &user_str,
-        merit_reward,
+        merit_reward as i64,
         incense_points_reward,
         0,
     )
@@ -390,7 +479,7 @@ async fn handle_fortune_drawn(
         &pool,
         &user_str,
         &fortune_result,
-        if used_merit { 100 } else { 0 }, // Assuming merit cost is 100
+        if used_merit { 5 } else { 0 }, // Contract uses 5 merit for paid draws
         !used_merit,
         "", // transaction_signature - would need to be passed from event
     )
@@ -399,13 +488,32 @@ async fn handle_fortune_drawn(
     // 2. Update user state (increment fortune draws count)
     crate::db::increment_user_fortune_draws(&pool, &user_str, created_at).await?;
 
-    // 3. Update user state with merit reward for drawing fortune (+2 merit per product docs)
-    crate::db::upsert_user_state_by_donation(
-        pool, &user_str, 2, // +2 merit for drawing fortune
-        0, // no incense points
-        0, // no donation amount
-    )
-    .await?;
+    // 3. Handle merit changes - All fortune draws give +2 merit reward
+    if used_merit {
+        // Paid fortune draw: deduct 5 merit + reward 2 merit = net -3 merit
+        crate::db::upsert_user_state_by_donation(
+            pool, &user_str, -3i64, // -5 + 2 = -3 merit
+            0,     // no incense points
+            0,     // no donation amount
+        )
+        .await?;
+        println!(
+            "Paid fortune draw: deducted 5 merit, added 2 merit reward (net -3) for user {}",
+            user_str
+        );
+    } else {
+        // Free fortune draw: reward 2 merit
+        crate::db::upsert_user_state_by_donation(
+            pool, &user_str, 2i64, // +2 merit for free draw
+            0,    // no incense points
+            0,    // no donation amount
+        )
+        .await?;
+        println!(
+            "Free fortune draw: added 2 merit reward for user {}",
+            user_str
+        );
+    }
 
     Ok(())
 }
@@ -431,7 +539,11 @@ async fn handle_wish_created(
     // Convert content_hash to hex string for storage
     let content_hash_hex = hex::encode(content_hash);
 
-    // 1. Insert wish record with content hash
+    // 1. Check if user has already made 3 wishes today
+    let daily_wish_count = crate::db::get_user_daily_wish_count(&pool, &user_str).await?;
+    let is_paid_wish = daily_wish_count >= 3;
+
+    // 2. Insert wish record with content hash
     crate::db::upsert_wish(
         &pool,
         wish_id,
@@ -443,15 +555,30 @@ async fn handle_wish_created(
     )
     .await?;
 
-    // 2. Update user state with merit reward for making a wish (+1 merit per product docs)
-    crate::db::upsert_user_state_by_donation(
-        pool, &user_str, 1, // +1 merit for making a wish
-        0, // no incense points
-        0, // no donation amount
-    )
-    .await?;
+    // 3. Handle merit changes
+    // All wishes give +1 merit reward
+    if is_paid_wish {
+        crate::db::upsert_user_state_by_donation(
+            pool, &user_str, -4i64, // -5 + 1 = -4
+            0,     // no incense points
+            0,     // no donation amount
+        )
+        .await?;
+        println!(
+            "Paid wish: deducted 5 merit, added 1 merit reward (net -4) for user {}",
+            user_str
+        );
+    } else {
+        crate::db::upsert_user_state_by_donation(
+            pool, &user_str, 1i64, // +1 merit for making a wish
+            0,    // no incense points
+            0,    // no donation amount
+        )
+        .await?;
+        println!("Free wish: added 1 merit reward for user {}", user_str);
+    }
 
-    // 3. Increment user wish count
+    // 4. Increment user wish count
     crate::db::increment_user_wish_count(&pool, &user_str, created_at).await?;
 
     Ok(())

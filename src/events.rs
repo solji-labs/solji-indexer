@@ -149,12 +149,14 @@ pub enum ProgramEvent {
         total_donated: u64,
         level: u8,
         timestamp: i64,
+        transaction_signature: String,
     },
     RewardsProcessed {
         user: Pubkey,
         merit_reward: u64,
         incense_points_reward: u64,
         timestamp: i64,
+        transaction_signature: String,
     },
     DonationNFTMinted {
         user: Pubkey,
@@ -162,6 +164,7 @@ pub enum ProgramEvent {
         level: u8,
         serial_number: u32,
         timestamp: i64,
+        transaction_signature: String,
     },
     FortuneDrawn {
         user: Pubkey,
@@ -169,6 +172,7 @@ pub enum ProgramEvent {
         used_merit: bool,
         amulet_dropped: bool,
         timestamp: i64,
+        transaction_signature: String,
     },
     WishCreated {
         user: Pubkey,
@@ -177,18 +181,21 @@ pub enum ProgramEvent {
         is_anonymous: bool,
         amulet_dropped: bool,
         timestamp: i64,
+        transaction_signature: String,
     },
     WishTowerUpdated {
         user: Pubkey,
         wish_count: u32,
         level: u8,
         timestamp: i64,
+        transaction_signature: String,
     },
     AmuletDropped {
         user: Pubkey,
         amulet_type: u8,
         source: String,
         timestamp: i64,
+        transaction_signature: String,
     },
     AmuletMinted {
         user: Pubkey,
@@ -196,12 +203,14 @@ pub enum ProgramEvent {
         source: String,
         serial_number: u32,
         timestamp: i64,
+        transaction_signature: String,
     },
     IncenseBurned {
         user: Pubkey,
         incense_id: u8,
         amount: u64,
         timestamp: i64,
+        transaction_signature: String,
     },
     ShopConfigUpdated {
         shop_config: Pubkey,
@@ -209,6 +218,7 @@ pub enum ProgramEvent {
         owner: Pubkey,
         shop_items: Vec<ShopItem>,
         timestamp: i64,
+        transaction_signature: String,
     },
     FortuneNFTMinted {
         user: Pubkey,
@@ -217,5 +227,6 @@ pub enum ProgramEvent {
         merit_cost: u32,
         serial_number: u32,
         timestamp: i64,
+        transaction_signature: String,
     },
 }

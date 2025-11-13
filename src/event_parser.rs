@@ -69,6 +69,7 @@ fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
                 total_donated: event.total_donated,
                 level: event.level,
                 timestamp: event.timestamp,
+                transaction_signature: String::new(),
             })
         } else {
             println!("Failed to deserialize DonationCompleted");
@@ -83,6 +84,7 @@ fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
                 level: event.level,
                 serial_number: event.serial_number,
                 timestamp: event.timestamp,
+                transaction_signature: String::new(),
             })
         } else {
             println!("Failed to deserialize DonationNFTMinted");
@@ -97,6 +99,7 @@ fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
                 used_merit: event.used_merit,
                 amulet_dropped: event.amulet_dropped,
                 timestamp: event.timestamp,
+                transaction_signature: String::new(),
             })
         } else {
             println!("Failed to deserialize FortuneDrawn");
@@ -110,6 +113,7 @@ fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
                 merit_reward: event.merit_reward,
                 incense_points_reward: event.incense_points_reward,
                 timestamp: event.timestamp,
+                transaction_signature: String::new(),
             })
         } else {
             println!("Failed to deserialize RewardsProcessed");
@@ -132,6 +136,7 @@ fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
                 is_anonymous: event.is_anonymous,
                 amulet_dropped: event.amulet_dropped,
                 timestamp: event.timestamp,
+                transaction_signature: String::new(),
             })
         } else {
             println!("Failed to deserialize WishCreated");
@@ -145,6 +150,7 @@ fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
                 amulet_type: event.amulet_type,
                 source: event.source,
                 timestamp: event.timestamp,
+                transaction_signature: String::new(),
             })
         } else {
             println!("Failed to deserialize AmuletDropped");
@@ -159,6 +165,7 @@ fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
                 source: event.source,
                 serial_number: event.serial_number,
                 timestamp: event.timestamp,
+                transaction_signature: String::new(),
             })
         } else {
             println!("Failed to deserialize AmuletMinted");
@@ -174,6 +181,7 @@ fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
                 merit_cost: event.merit_cost,
                 serial_number: event.serial_number,
                 timestamp: event.timestamp,
+                transaction_signature: String::new(),
             })
         } else {
             println!("Failed to deserialize FortuneNFTMinted");
@@ -191,6 +199,7 @@ fn parse_base64_event(base64_data: &str) -> Option<ProgramEvent> {
                 incense_id: event.incense_id,
                 amount: event.amount,
                 timestamp: event.timestamp,
+                transaction_signature: String::new(),
             })
         } else {
             println!("Failed to deserialize IncenseBurned");

@@ -302,6 +302,21 @@ pub async fn init_database(pool: &DbPool) -> Result<(), sqlx::Error> {
     .execute(pool.as_ref())
     .await?;
 
+    // Processed Transactions table (for deduplication)
+    sqlx::query(
+        r#"CREATE TABLE IF NOT EXISTS processed_transactions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            transaction_signature VARCHAR(88) NOT NULL UNIQUE,
+            event_type VARCHAR(50) NOT NULL,
+            processed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_transaction_signature (transaction_signature),
+            INDEX idx_event_type (event_type),
+            INDEX idx_processed_at (processed_at)
+        )"#,
+    )
+    .execute(pool.as_ref())
+    .await?;
+
     // Temple Level table (removed - not needed for current implementation)
 
     // Create indexes (ignore if already exists)
@@ -689,7 +704,7 @@ pub async fn upsert_user_state(
 pub async fn upsert_user_state_by_donation(
     pool: &DbPool,
     user_pubkey: &str,
-    merit_gained: u64,
+    merit_gained: i64,
     incense_points_gained: u64,
     donation_amount: u64,
 ) -> Result<(), sqlx::Error> {
@@ -706,7 +721,7 @@ pub async fn upsert_user_state_by_donation(
         "#,
     )
     .bind(user_pubkey)
-    .bind(merit_gained as i64)
+    .bind(merit_gained)
     .bind(incense_points_gained as i64)
     .bind(donation_amount as i64)
     .execute(pool.as_ref())
@@ -2429,4 +2444,49 @@ pub async fn get_user_donation_badges(
     .bind(user_pubkey)
     .fetch_all(pool.as_ref())
     .await
+}
+
+// ===== TRANSACTION DEDUPLICATION FUNCTIONS =====
+
+/// Check if transaction has already been processed
+pub async fn is_transaction_processed(
+    pool: &DbPool,
+    transaction_signature: &str,
+    event_type: &str,
+) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT COUNT(*) FROM processed_transactions
+        WHERE transaction_signature = ? AND event_type = ?
+        "#,
+    )
+    .bind(transaction_signature)
+    .bind(event_type)
+    .fetch_one(pool.as_ref())
+    .await?;
+
+    Ok(result > 0)
+}
+
+/// Mark transaction as processed
+pub async fn mark_transaction_processed(
+    pool: &DbPool,
+    transaction_signature: &str,
+    event_type: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO processed_transactions (
+            transaction_signature, event_type
+        ) VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE
+            processed_at = NOW()
+        "#,
+    )
+    .bind(transaction_signature)
+    .bind(event_type)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(())
 }
