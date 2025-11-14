@@ -18,7 +18,7 @@ services:
 
   # indexer services
   sonia-indexer:
-      image: sonia831/solji-indexer:v4.5.1
+      image: sonia831/solji-indexer:v4.5.2
       container_name: solji_indexer_sonia
       restart: always
       # network_mode: "host"

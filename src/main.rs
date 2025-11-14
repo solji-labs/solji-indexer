@@ -116,7 +116,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::spawn(async move {
         println!("Starting event listener...");
         if let Err(e) = fetcher.start_listening().await {
-            eprintln!("Event listener error: {:?}", e);
+            eprintln!("Event listener error: {}", e);
         }
     });
 
